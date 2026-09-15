@@ -60,10 +60,24 @@
   .hidden { display: none !important; }
 
   .signal-feed { margin: 1.25rem 1.5rem 0; }
+  .signal-feed-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; }
   .signal-feed-header {
-    display: flex; align-items: center; gap: 8px; margin-bottom: 0.7rem;
+    display: flex; align-items: center; gap: 8px;
     font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint);
   }
+  .signal-count { color: var(--pink); font-weight: 600; text-transform: none; letter-spacing: 0; }
+  .signal-refresh {
+    background: var(--panel); border: 1px solid var(--hairline); color: var(--text-muted);
+    border-radius: 6px; padding: 5px 11px; font-size: 12px; cursor: pointer;
+  }
+  .signal-refresh:hover { border-color: var(--pink); color: var(--text); }
+  .signal-refresh:disabled { opacity: 0.5; cursor: default; }
+  .signal-tabs { display: flex; gap: 6px; margin-bottom: 0.7rem; }
+  .signal-tab {
+    background: transparent; border: 1px solid var(--hairline); color: var(--text-muted);
+    border-radius: 20px; padding: 4px 12px; font-size: 11px; cursor: pointer;
+  }
+  .signal-tab.active { background: var(--panel-raised); color: var(--text); border-color: var(--pink); }
   .signal-pulse {
     width: 7px; height: 7px; border-radius: 50%; background: var(--pink);
     box-shadow: 0 0 0 0 rgba(240,70,110,0.6);
@@ -153,7 +167,15 @@
   <div id="status" class="status-banner hidden"></div>
 
   <div class="signal-feed">
-    <div class="signal-feed-header"><span class="signal-pulse"></span>Signal Feed — active alerts</div>
+    <div class="signal-feed-top">
+      <div class="signal-feed-header"><span class="signal-pulse"></span>Signal Feed <span class="signal-count" id="signal-count"></span></div>
+      <button class="signal-refresh" id="signal-refresh">&#8635; Refresh</button>
+    </div>
+    <div class="signal-tabs" id="signal-tabs">
+      <button class="signal-tab active" data-filter="">All</button>
+      <button class="signal-tab" data-filter="model_disagreement">Disagreements</button>
+      <button class="signal-tab" data-filter="low_confidence">Low Confidence</button>
+    </div>
     <div class="signal-scroll" id="signal-scroll">
       <div class="signal-empty">Loading alerts...</div>
     </div>
@@ -206,12 +228,17 @@
     low_confidence: '\uD83D\uDD0D'
   };
 
-  function renderAlerts(alerts) {
+  var currentAlerts = [];
+  var currentFilter = '';
+
+  function renderAlertCards(alerts) {
     signalScrollEl.innerHTML = '';
     if (!alerts || alerts.length === 0) {
       var empty = document.createElement('div');
       empty.className = 'signal-empty';
-      empty.textContent = 'No active alerts right now -- models are in agreement across scheduled games.';
+      empty.textContent = currentAlerts.length === 0
+        ? 'No active alerts right now -- models are in agreement across scheduled games.'
+        : 'No alerts match this filter.';
       signalScrollEl.appendChild(empty);
       return;
     }
@@ -233,6 +260,44 @@
       signalScrollEl.appendChild(card);
     });
   }
+
+  function applyFilterAndRender() {
+    var filtered = currentFilter ? currentAlerts.filter(function (a) { return a.alert_type === currentFilter; }) : currentAlerts;
+    renderAlertCards(filtered);
+  }
+
+  function renderAlerts(alerts) {
+    currentAlerts = alerts || [];
+    document.getElementById('signal-count').textContent = '(' + currentAlerts.length + ' active)';
+    applyFilterAndRender();
+  }
+
+  document.querySelectorAll('.signal-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.signal-tab').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      currentFilter = btn.getAttribute('data-filter');
+      applyFilterAndRender();
+    });
+  });
+
+  document.getElementById('signal-refresh').addEventListener('click', function () {
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Refreshing...';
+    fetch(API_BASE + '/alerts/nfl/generate', { method: 'POST' })
+      .then(function () { return fetch(API_BASE + '/alerts/nfl'); })
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) {
+        renderAlerts(data.alerts);
+        btn.disabled = false;
+        btn.innerHTML = '&#8635; Refresh';
+      })
+      .catch(function () {
+        btn.disabled = false;
+        btn.innerHTML = '&#8635; Refresh';
+      });
+  });
 
   function loadAlerts() {
     fetch(API_BASE + '/alerts/nfl')
@@ -355,5 +420,4 @@
   loadGames();
 </script>
 </body>
-
 </html>
