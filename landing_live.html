@@ -95,6 +95,30 @@
   .account-btn:hover { border-color: var(--pink); color: var(--text); }
   .account-btn.logged-in { background: linear-gradient(135deg, var(--orange), var(--pink) 55%, var(--purple)); color: #fff; border: none; }
 
+  .bell-wrap { position: relative; }
+  .bell-btn {
+    width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--hairline);
+    background: var(--panel); color: var(--text-muted); display: flex; align-items: center;
+    justify-content: center; cursor: pointer; position: relative;
+  }
+  .bell-btn:hover { border-color: var(--pink); color: var(--text); }
+  .bell-badge {
+    position: absolute; top: -4px; right: -4px; background: var(--pink); color: #fff;
+    font-size: 10px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; padding: 0 3px; line-height: 1;
+  }
+  .bell-dropdown {
+    position: absolute; top: 40px; right: 0; background: var(--panel); border: 1px solid var(--hairline);
+    border-radius: 10px; padding: 0.6rem; width: 300px; max-height: 340px; overflow-y: auto; z-index: 50;
+  }
+  .bell-dropdown-title { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint); padding: 4px 6px 8px; }
+  .bell-item {
+    display: block; text-decoration: none; color: inherit; padding: 8px; border-radius: 7px;
+    border-left: 3px solid var(--pink); background: var(--bg); margin-bottom: 6px; font-size: 12px; line-height: 1.45;
+  }
+  .bell-item:hover { background: var(--panel-raised); }
+  .bell-empty { font-size: 12px; color: var(--text-faint); font-style: italic; padding: 8px 6px; }
+
   .account-wrap { position: relative; }
   .account-dropdown {
     position: absolute; top: 40px; right: 0; background: var(--panel); border: 1px solid var(--hairline);
@@ -145,6 +169,19 @@
     </div>
     <div style="display:flex; align-items:center; gap:1rem;">
       <a href="dashboard_live.html" class="nav-cta">Today's games</a>
+      <div class="bell-wrap">
+        <button class="bell-btn" id="bell-btn" title="Alerts">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span class="bell-badge hidden" id="bell-badge"></span>
+        </button>
+        <div class="bell-dropdown hidden" id="bell-dropdown">
+          <div class="bell-dropdown-title">Active Signals</div>
+          <div id="bell-list"></div>
+        </div>
+      </div>
       <div class="account-wrap">
         <button class="account-btn" id="account-btn" title="Account">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -397,6 +434,55 @@
         showLoggedOutUI();
       });
   })();
+
+  var bellBtn = document.getElementById('bell-btn');
+  var bellBadge = document.getElementById('bell-badge');
+  var bellDropdown = document.getElementById('bell-dropdown');
+  var bellList = document.getElementById('bell-list');
+
+  var ALERT_ICONS = { model_disagreement: '\u26A1', low_confidence: '\uD83D\uDD0D' };
+
+  function renderBell(alerts) {
+    if (!alerts || alerts.length === 0) {
+      bellBadge.classList.add('hidden');
+      bellList.innerHTML = '<div class="bell-empty">No active signals right now.</div>';
+      return;
+    }
+    bellBadge.textContent = alerts.length > 9 ? '9+' : String(alerts.length);
+    bellBadge.classList.remove('hidden');
+
+    bellList.innerHTML = '';
+    alerts.forEach(function (a) {
+      var item = document.createElement('a');
+      item.className = 'bell-item';
+      item.href = 'game_detail_live.html?game=' + a.game_id;
+      item.textContent = (ALERT_ICONS[a.alert_type] || '\u2022') + ' ' + a.message;
+      bellList.appendChild(item);
+    });
+  }
+
+  function loadBellAlerts() {
+    fetch(API_BASE + '/alerts/nfl')
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) { renderBell(data.alerts); })
+      .catch(function () {
+        bellList.innerHTML = '<div class="bell-empty">Could not load alerts.</div>';
+      });
+  }
+
+  bellBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    bellDropdown.classList.toggle('hidden');
+    accountDropdown.classList.add('hidden');
+  });
+  document.addEventListener('click', function (e) {
+    if (!bellDropdown.contains(e.target) && e.target !== bellBtn) {
+      bellDropdown.classList.add('hidden');
+    }
+  });
+
+  loadBellAlerts();
 </script>
 </body>
-</html>
+</html>ø
+≈ø
