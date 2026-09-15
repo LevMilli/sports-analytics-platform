@@ -38,7 +38,7 @@ app = FastAPI(title="Sports Data Analysis Platform", version="0.1.0-mvp")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://sports-analytics-platform-1-eoln.onrender.com", "http://localhost:5500", "http://localhost:5501"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
