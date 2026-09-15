@@ -51,6 +51,13 @@
     background: var(--panel); border: 1px solid var(--hairline); color: var(--text);
     border-radius: 6px; padding: 6px 10px; font-size: 13px;
   }
+  .league-tabs { display: flex; gap: 4px; }
+  .league-tab {
+    background: transparent; border: 1px solid var(--hairline); color: var(--text-muted);
+    border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+  }
+  .league-tab.active { background: var(--panel-raised); color: var(--text); border-color: var(--pink); }
+  .league-tab:hover:not(.active) { border-color: var(--text-muted); }
 
   .status-banner {
     margin: 1.25rem 1.5rem 0; padding: 0.9rem 1.1rem; border-radius: 8px;
@@ -145,7 +152,7 @@
   <div class="gradient-bar"></div>
 
   <div class="nav">
-    <div class="brand-row">
+    <a href="landing_live.html" class="brand-row" style="text-decoration:none;">
       <div class="brand-mark">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
           <path d="M3 17 L9 11 L13 15 L21 6" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -153,14 +160,14 @@
         </svg>
       </div>
       <span class="brand-name">Vantage</span>
-    </div>
+    </a>
     <div class="nav-links">
       <a href="dashboard_live.html" class="active">Dashboard</a>
-      <select id="status-filter" class="filter-select">
-        <option value="">All games</option>
-        <option value="scheduled">Scheduled</option>
-        <option value="final">Final</option>
-      </select>
+      <div class="league-tabs" id="league-tabs">
+        <button class="league-tab active" data-league="nfl">NFL</button>
+        <button class="league-tab" data-league="mlb">MLB</button>
+        <button class="league-tab" data-league="nba">NBA</button>
+      </div>
     </div>
   </div>
 
@@ -182,7 +189,7 @@
   </div>
 
   <div class="day-header">
-    <div class="day-title">NFL Games</div>
+    <div class="day-title" id="day-title">NFL Games</div>
     <div class="day-sub" id="game-count"></div>
   </div>
 
@@ -194,8 +201,8 @@
   var statusEl = document.getElementById('status');
   var listEl = document.getElementById('game-list');
   var countEl = document.getElementById('game-count');
-  var filterEl = document.getElementById('status-filter');
   var signalScrollEl = document.getElementById('signal-scroll');
+  var currentLeague = 'nfl';
 
   function showStatus(message, isError) {
     statusEl.textContent = message;
@@ -392,10 +399,10 @@
 
   function loadGames() {
     listEl.innerHTML = '';
-    showStatus('Loading games from the backend...', false);
+    document.getElementById('day-title').textContent = currentLeague.toUpperCase() + ' Games';
+    showStatus('Loading ' + currentLeague.toUpperCase() + ' games from the backend...', false);
 
-    var status = filterEl.value;
-    var url = API_BASE + '/games/nfl?limit=50' + (status ? '&status=' + status : '');
+    var url = API_BASE + '/games/' + currentLeague + '?limit=50';
 
     fetch(url)
       .then(function (resp) {
@@ -415,7 +422,15 @@
       });
   }
 
-  filterEl.addEventListener('change', loadGames);
+  document.querySelectorAll('.league-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.league-tab').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      currentLeague = btn.getAttribute('data-league');
+      loadGames();
+    });
+  });
+
   loadAlerts();
   loadGames();
 </script>
