@@ -168,3 +168,175 @@ def sync_nfl_stats(start: str = _START_Q, end: str = _END_Q, db: Session = Depen
         try:
             per_game_results[game.external_id] = run_stats_ingestion(db, connector, game)
         except RuntimeError as e:
+            per_game_results[game.external_id] = {"error": str(e)}
+
+    return {"provider": connector.provider_name, "date_range": [start, end], "games_processed": len(games), "results": per_game_results}
+
+
+@app.post("/ingestion/nfl/injuries/sync")
+def sync_nfl_injuries(db: Session = Depends(get_db)):
+    if not settings.api_sports_key:
+        raise HTTPException(status_code=400, detail="API_SPORTS_KEY is not set. See the /ingestion/nfl/sync error for setup steps.")
+
+    league = db.query(League).filter_by(slug="nfl").first()
+    if not league:
+        raise HTTPException(status_code=400, detail="No 'nfl' league found yet -- run /ingestion/nfl/sync at least once first so there are teams on file to fetch injuries for.")
+
+    teams = db.query(Team).filter_by(league_id=league.id, provider="api_sports_nfl").all()
+    if not teams:
+        raise HTTPException(status_code=404, detail="No NFL teams on file yet. Run /ingestion/nfl/sync first.")
+
+    connector = ApiSportsConnector(api_key=settings.api_sports_key)
+    per_team_results = {}
+    for team in teams:
+        try:
+            per_team_results[team.name] = run_injury_ingestion(db, connector, team)
+        except RuntimeError as e:
+            per_team_results[team.name] = {"error": str(e)}
+
+    return {"provider": connector.provider_name, "teams_processed": len(teams), "results": per_team_results}
+
+
+@app.post("/features/nfl/compute")
+def compute_nfl_features(db: Session = Depends(get_db)):
+    try:
+        result = compute_features_for_league(db, "nfl")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return result
+
+
+@app.post("/features/nfl/elo/compute")
+def compute_nfl_elo(db: Session = Depends(get_db)):
+    try:
+        result = compute_elo_for_league(db, "nfl")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return result
+
+
+@app.post("/backtest/nfl/run")
+def backtest_nfl(model: str = "elo", db: Session = Depends(get_db)):
+    try:
+        result = run_backtest_for_league(db, "nfl", model_name=model)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return result
+
+
+@app.get("/games/{game_id}/explain")
+def explain_game_endpoint(game_id: int, db: Session = Depends(get_db)):
+    try:
+        result = explain_game(db, game_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return result
+
+
+@app.post("/features/nfl/logistic/train")
+def train_nfl_logistic(db: Session = Depends(get_db)):
+    try:
+        result = train_logistic_for_league(db, "nfl")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return result
+
+
+@app.post("/alerts/nfl/generate")
+def generate_nfl_alerts(db: Session = Depends(get_db)):
+    try:
+        result = generate_alerts_for_league(db, "nfl")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return result
+
+
+@app.get("/alerts/nfl")
+def list_nfl_alerts(db: Session = Depends(get_db)):
+    league = db.query(League).filter_by(slug="nfl").first()
+    if not league:
+        return {"alerts": []}
+
+    alerts = db.query(Alert).filter_by(league_id=league.id).order_by(Alert.created_at.desc()).all()
+    return {
+        "alerts": [
+            {
+                "game_id": a.game_id,
+                "alert_type": a.alert_type,
+                "severity": a.severity,
+                "message": a.message,
+            }
+            for a in alerts
+        ]
+    }
+
+
+@app.get("/games/nfl")
+def list_nfl_games(status: str = None, limit: int = 50, db: Session = Depends(get_db)):
+    try:
+        result = list_games_for_league(db, "nfl", status=status, limit=limit)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return result
+
+
+@app.post("/admin/seed-demo-data")
+def seed_demo_data(db: Session = Depends(get_db)):
+    import random
+    from datetime import datetime, timezone, timedelta
+    from app.db.models.core import Sport, League, Team, Game
+
+    sport = db.query(Sport).filter_by(slug="football").first()
+    if not sport:
+        sport = Sport(name="Football", slug="football")
+        db.add(sport)
+        db.flush()
+
+    league = db.query(League).filter_by(slug="nfl").first()
+    if not league:
+        league = League(sport_id=sport.id, name="NFL", slug="nfl")
+        db.add(league)
+        db.flush()
+
+    team_names = {"1": "Test Team", "2": "Test Opponent", "3": "Test Rival", "4": "Test Challenger"}
+    teams = {}
+    for ext_id, name in team_names.items():
+        t = db.query(Team).filter_by(league_id=league.id, external_id=ext_id, provider="api_sports_nfl").first()
+        if not t:
+            t = Team(league_id=league.id, external_id=ext_id, provider="api_sports_nfl", name=name)
+            db.add(t)
+            db.flush()
+        teams[ext_id] = t
+
+    strength = {"1": 90, "2": 75, "3": 60, "4": 45}
+    team_ids = list(team_names.keys())
+    pairs = [(a, b) for i, a in enumerate(team_ids) for b in team_ids[i+1:]]
+    schedule = (pairs * 3)[:16]
+
+    random.seed(7)
+    base = datetime(2026, 10, 1, tzinfo=timezone.utc)
+    created = 0
+    for i, (a, b) in enumerate(schedule):
+        home_id, away_id = (a, b) if i % 2 == 0 else (b, a)
+        ext_id = f"seed-g{i+1}"
+        if db.query(Game).filter_by(league_id=league.id, external_id=ext_id, provider="api_sports_nfl").first():
+            continue
+        home_score = max(0, round(strength[home_id] / 4 + 3 + random.gauss(0, 4)))
+        away_score = max(0, round(strength[away_id] / 4 + random.gauss(0, 4)))
+        db.add(Game(
+            league_id=league.id, external_id=ext_id, provider="api_sports_nfl", season="2026",
+            game_date=base + timedelta(days=7 * (i // 2)),
+            home_team_id=teams[home_id].id, away_team_id=teams[away_id].id,
+            status="final", home_score=home_score, away_score=away_score,
+        ))
+        created += 1
+
+    db.commit()
+    return {"teams_seeded": len(teams), "games_created": created}
