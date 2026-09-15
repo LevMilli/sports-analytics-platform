@@ -1,17 +1,11 @@
 """
-Explainability pipeline (Milestone 7).
-
-Turns a game's Elo prediction and rolling-form features into
-plain-language reasons, plus a confidence score based on how much
-data each team had on file. No new table -- this reads
-team_game_features (already computed by Milestones 4-5) and assembles
-a response on the fly.
+Explainability pipeline (Milestone 7, extended for model consensus).
 """
 
 from typing import Optional
 from sqlalchemy.orm import Session
 
-from app.db.models.core import Game, Team, TeamGameFeatures
+from app.db.models.core import Game, Team, TeamGameFeatures, Prediction
 
 ROLLING_WINDOW = 5
 
@@ -101,6 +95,27 @@ def explain_game(db: Session, game_id: int) -> dict:
     home_prob = float(home_f.elo_win_prob) if home_f.elo_win_prob is not None else None
     away_prob = float(away_f.elo_win_prob) if away_f.elo_win_prob is not None else None
 
+    logistic_home_pred = (
+        db.query(Prediction)
+        .filter_by(game_id=game_id, team_id=game.home_team_id, model_name="logistic")
+        .first()
+    )
+    logistic_away_pred = (
+        db.query(Prediction)
+        .filter_by(game_id=game_id, team_id=game.away_team_id, model_name="logistic")
+        .first()
+    )
+    logistic_home_prob = float(logistic_home_pred.win_probability) if logistic_home_pred else None
+    logistic_away_prob = float(logistic_away_pred.win_probability) if logistic_away_pred else None
+
+    consensus = None
+    if home_prob is not None and logistic_home_prob is not None:
+        gap = abs(home_prob - logistic_home_prob)
+        consensus = {
+            "gap": round(gap, 4),
+            "agree": gap < 0.15,
+        }
+
     factors = _build_factors(home_team, away_team, home_f, away_f)
 
     home_games = home_f.games_played_prior or 0
@@ -116,6 +131,11 @@ def explain_game(db: Session, game_id: int) -> dict:
             "home": round(home_prob, 4) if home_prob is not None else None,
             "away": round(away_prob, 4) if away_prob is not None else None,
         },
+        "logistic_win_probability": {
+            "home": round(logistic_home_prob, 4) if logistic_home_prob is not None else None,
+            "away": round(logistic_away_prob, 4) if logistic_away_prob is not None else None,
+        },
+        "consensus": consensus,
         "factors": factors,
         "confidence": confidence,
         "sample_size": _sample_size_label(sample_games),
