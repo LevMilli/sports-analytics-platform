@@ -65,8 +65,8 @@ class BallDontLieNFLConnector(BallDontLieBaseConnector):
                 "name": away.get("full_name"),
                 "abbreviation": away.get("abbreviation"),
             },
-            "venue_name": None,
+            "venue_name": raw.get("venue"),
             "status": STATUS_STATE_MAP.get(status_state, "scheduled"),
-            "home_score": raw.get("home_score"),
-            "away_score": raw.get("away_score"),
+            "home_score": raw.get("home_team_score"),
+            "away_score": raw.get("visitor_team_score"),
         }
