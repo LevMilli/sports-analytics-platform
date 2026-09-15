@@ -277,10 +277,10 @@ def list_nfl_alerts(db: Session = Depends(get_db)):
     }
 
 
-@app.get("/games/nfl")
-def list_nfl_games(status: str = None, limit: int = 50, db: Session = Depends(get_db)):
+@app.get("/games/{league_slug}")
+def list_league_games(league_slug: str, status: str = None, limit: int = 50, db: Session = Depends(get_db)):
     try:
-        result = list_games_for_league(db, "nfl", status=status, limit=limit)
+        result = list_games_for_league(db, league_slug, status=status, limit=limit)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
