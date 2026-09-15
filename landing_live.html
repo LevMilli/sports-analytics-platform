@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Vantage — See the edge, not the noise</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #140B10;
+    --panel: #1E1319;
+    --hairline: #33202B;
+    --text: #F3EDEF;
+    --text-muted: #A6919B;
+    --text-faint: #6B5560;
+    --orange: #F7941D;
+    --pink: #F0466E;
+    --purple: #A855F7;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 640px; margin: 0 auto; padding: 0 0 4rem; position: relative; }
+
+  .glow {
+    position: absolute;
+    top: -120px; left: 50%; transform: translateX(-50%);
+    width: 560px; height: 320px;
+    background: radial-gradient(ellipse, rgba(247,148,29,0.16), rgba(240,70,110,0.16) 45%, rgba(168,85,247,0.14) 75%, transparent 85%);
+    filter: blur(10px); pointer-events: none; z-index: 0;
+  }
+
+  .nav {
+    position: relative; z-index: 1;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.5rem 1.5rem 0;
+  }
+  .brand-row { display: flex; align-items: center; gap: 9px; }
+  .brand-mark {
+    width: 24px; height: 24px; border-radius: 6px;
+    background: linear-gradient(135deg, var(--orange), var(--pink) 55%, var(--purple));
+    display: flex; align-items: center; justify-content: center; flex: none;
+  }
+  .brand-name { font-size: 15px; font-weight: 600; color: var(--text); }
+  .nav-cta { font-size: 13px; color: var(--text-muted); text-decoration: none; }
+  .nav-cta:hover { color: var(--pink); }
+
+  .hero { position: relative; z-index: 1; padding: 5rem 1.5rem 3rem; text-align: center; }
+  .hero h1 {
+    font-family: 'Bebas Neue', sans-serif; font-size: 56px; line-height: 1.0;
+    letter-spacing: 0.005em; margin: 0 auto 1.25rem; max-width: 440px;
+  }
+  .hero h1 .grad {
+    background: linear-gradient(90deg, var(--orange), var(--pink) 60%, var(--purple));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .hero p { font-size: 15px; color: var(--text-muted); max-width: 360px; margin: 0 auto 2rem; line-height: 1.6; }
+  .btn-primary {
+    display: inline-block;
+    background: linear-gradient(90deg, var(--orange), var(--pink) 60%, var(--purple));
+    color: #1A0B0A; font-weight: 600; font-size: 14px; text-decoration: none;
+    padding: 12px 26px; border-radius: 100px;
+  }
+
+  .preview { position: relative; z-index: 1; margin: 0 1.5rem 4rem; padding-top: 1.5rem; border-top: 1px solid var(--hairline); }
+  .preview-status { font-size: 12px; color: var(--text-faint); margin-bottom: 0.75rem; text-align: center; }
+  .preview-row { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
+  .badge-sm { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; flex: none; color: #fff; }
+  .preview-teams { flex: 1; font-size: 14px; }
+  .preview-teams .name { color: var(--text-muted); }
+  .preview-vs { color: var(--text-faint); margin: 0 5px; }
+  .preview-track { width: 100px; height: 5px; border-radius: 3px; background: rgba(0,0,0,0.35); overflow: hidden; }
+  .preview-fill { height: 100%; background: var(--pink); }
+  .preview-pct { font-size: 13px; color: var(--text-muted); width: 34px; text-align: right; }
+
+  .features { padding: 0 1.5rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; text-align: center; }
+  .feature h3 { font-size: 14px; font-weight: 600; margin: 0 0 0.4rem; color: var(--text); }
+  .feature p { font-size: 13px; color: var(--text-muted); line-height: 1.55; margin: 0; }
+
+  .foot-note { padding: 3rem 1.5rem 0; font-size: 12px; color: var(--text-faint); text-align: center; line-height: 1.6; }
+  .hidden { display: none !important; }
+
+  @media (max-width: 560px) {
+    .hero h1 { font-size: 40px; }
+    .features { grid-template-columns: 1fr; gap: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="glow"></div>
+
+  <div class="nav">
+    <div class="brand-row">
+      <div class="brand-mark">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+          <path d="M3 17 L9 11 L13 15 L21 6" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M15 6 L21 6 L21 12" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="brand-name">Vantage</span>
+    </div>
+    <a href="dashboard_live.html" class="nav-cta">Today's games</a>
+  </div>
+
+  <div class="hero">
+    <h1>Where the model and the <span class="grad">market</span> disagree.</h1>
+    <p>A statistical read on every game, checked against what the odds already imply, with the reasoning shown.</p>
+    <a href="dashboard_live.html" class="btn-primary">See today's games</a>
+  </div>
+
+  <div class="preview">
+    <div class="preview-status" id="preview-status">Loading a live game...</div>
+    <a href="#" class="preview-row hidden" id="preview-row"></a>
+  </div>
+
+  <div class="features">
+    <div class="feature">
+      <h3>Model vs market</h3>
+      <p>See the gap, not just a number.</p>
+    </div>
+    <div class="feature">
+      <h3>Shown reasoning</h3>
+      <p>Ranked factors, not a black box.</p>
+    </div>
+    <div class="feature">
+      <h3>Live movement</h3>
+      <p>Volume and odds, as they shift.</p>
+    </div>
+  </div>
+
+  <p class="foot-note">
+    Statistical estimates for research and decision support — not betting advice, and no outcome is guaranteed.
+  </p>
+
+</div>
+<script>
+  var API_BASE = 'http://localhost:8000';
+
+  function abbrFor(name) {
+    var words = name.split(' ');
+    if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+    return name.substring(0, 3).toUpperCase();
+  }
+  function badgeColorFor(name) {
+    var hash = 0;
+    for (var i = 0; i < name.length; i++) { hash = name.charCodeAt(i) + ((hash << 5) - hash); }
+    return 'hsl(' + (Math.abs(hash) % 360) + ', 55%, 40%)';
+  }
+
+  var statusEl = document.getElementById('preview-status');
+  var rowEl = document.getElementById('preview-row');
+
+  fetch(API_BASE + '/games/nfl?limit=1')
+    .then(function (resp) {
+      if (!resp.ok) throw new Error('Server returned ' + resp.status);
+      return resp.json();
+    })
+    .then(function (data) {
+      if (!data.games || data.games.length === 0) {
+        statusEl.textContent = 'No games on file yet.';
+        return;
+      }
+      var g = data.games[0];
+      statusEl.textContent = 'A real prediction, pulled live right now:';
+
+      rowEl.href = 'game_detail_live.html?game=' + g.game_id;
+      rowEl.classList.remove('hidden');
+
+      var homeAbbr = abbrFor(g.home_team);
+      var pct = g.elo_win_prob_home !== null ? Math.round(g.elo_win_prob_home * 100) : null;
+
+      var badge = document.createElement('span');
+      badge.className = 'badge-sm';
+      badge.style.background = badgeColorFor(g.home_team);
+      badge.textContent = homeAbbr;
+
+      var teams = document.createElement('div');
+      teams.className = 'preview-teams';
+      teams.innerHTML = g.home_team + ' <span class="preview-vs">@</span> <span class="name">' + g.away_team + '</span>';
+
+      var track = document.createElement('div');
+      track.className = 'preview-track';
+      var fill = document.createElement('div');
+      fill.className = 'preview-fill';
+      fill.style.width = (pct !== null ? pct : 0) + '%';
+      track.appendChild(fill);
+
+      var pctEl = document.createElement('span');
+      pctEl.className = 'preview-pct';
+      pctEl.textContent = pct !== null ? pct + '%' : '—';
+
+      rowEl.appendChild(badge);
+      rowEl.appendChild(teams);
+      rowEl.appendChild(track);
+      rowEl.appendChild(pctEl);
+    })
+    .catch(function (err) {
+      statusEl.textContent = 'Could not load a live preview (is the backend running?).';
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Vantage — Game Detail (Live)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #140B10;
+    --panel: #1E1319;
+    --panel-raised: #241722;
+    --hairline: #33202B;
+    --text: #F3EDEF;
+    --text-muted: #A6919B;
+    --text-faint: #6B5560;
+    --orange: #F7941D;
+    --pink: #F0466E;
+    --purple: #A855F7;
+    --positive: #4FAE7A;
+    --negative: #E1546A;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 920px; margin: 0 auto; padding: 0 0 4rem; }
+  .gradient-bar { height: 4px; background: linear-gradient(90deg, var(--orange), var(--pink) 55%, var(--purple)); }
+
+  .brand-row { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem 0; }
+  .brand-left { display: flex; align-items: center; gap: 10px; }
+  .brand-mark {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: linear-gradient(135deg, var(--orange), var(--pink) 55%, var(--purple));
+    display: flex; align-items: center; justify-content: center; flex: none;
+  }
+  .brand-name {
+    font-size: 15px; font-weight: 600; letter-spacing: 0.01em;
+    background: linear-gradient(90deg, var(--orange), var(--pink) 60%, var(--purple));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .game-picker { display: flex; gap: 6px; align-items: center; }
+  .game-picker input {
+    width: 64px; background: var(--panel); border: 1px solid var(--hairline);
+    color: var(--text); border-radius: 6px; padding: 6px 8px; font-size: 13px;
+  }
+  .game-picker button {
+    background: var(--panel-raised); border: 1px solid var(--hairline); color: var(--text);
+    border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+  }
+  .game-picker button:hover { border-color: var(--pink); }
+
+  .status-banner {
+    margin: 1.25rem 1.5rem 0; padding: 0.9rem 1.1rem; border-radius: 8px;
+    font-size: 13px; border: 1px solid var(--hairline); background: var(--panel);
+    color: var(--text-muted);
+  }
+  .status-banner.error { border-color: var(--negative); color: var(--negative); }
+  .hidden { display: none !important; }
+
+  .scoreboard { background: var(--panel); border-bottom: 1px solid var(--hairline); padding: 1.5rem 1.5rem; margin-top: 1.25rem; }
+  .meta-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; color: var(--text-muted); margin-bottom: 1.25rem; letter-spacing: 0.02em; }
+  .meta-row .league { color: var(--pink); font-weight: 600; }
+  .matchup { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 1.5rem; }
+  .team-block { text-align: center; }
+  .team-block.home { text-align: right; }
+  .team-block.away { text-align: left; }
+  .team-abbr { font-family: 'Bebas Neue', sans-serif; font-size: 48px; line-height: 0.9; letter-spacing: 0.02em; }
+  .team-name { font-size: 14px; color: var(--text-muted); margin-top: 4px; letter-spacing: 0.03em; }
+  .team-badge-lg {
+    width: 40px; height: 40px; border-radius: 50%; display: inline-flex;
+    align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-bottom: 8px;
+  }
+  .at-symbol { font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: var(--text-faint); }
+
+  .body { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 1px; background: var(--hairline); margin-top: 1px; }
+  .col { background: var(--bg); padding: 1.75rem 1.5rem; }
+  .section-label { font-size: 13px; color: var(--text-muted); margin: 0 0 1.25rem; }
+
+  .gauge-row { margin-bottom: 1.75rem; }
+  .gauge-row:last-child { margin-bottom: 0; }
+  .gauge-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; }
+  .gauge-team { font-size: 15px; font-weight: 500; }
+  .gauge-numbers { font-family: 'Bebas Neue', sans-serif; font-size: 30px; letter-spacing: 0.01em; }
+  .gauge-track { position: relative; height: 14px; background: var(--panel-raised); border-radius: 3px; }
+  .gauge-fill { position: absolute; top: 0; left: 0; bottom: 0; border-radius: 3px; background: rgba(240,70,110,0.35); transition: width 0.4s ease; }
+
+  .edge-line { margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid var(--hairline); font-size: 14px; color: var(--text-muted); }
+  .edge-line b { color: var(--text); font-weight: 500; }
+
+  .factor { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--hairline); font-size: 14px; line-height: 1.5; }
+  .factor:last-of-type { border-bottom: none; }
+  .factor-mark { flex: none; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-top: 1px; }
+  .factor-mark.pos { background: rgba(79,174,122,0.15); color: var(--positive); }
+  .factor-mark.neg { background: rgba(225,84,106,0.15); color: var(--negative); }
+  .factor-text { color: var(--text); }
+  .no-factors { font-size: 13px; color: var(--text-faint); font-style: italic; }
+
+  .badges { display: flex; gap: 12px; margin-top: 1.5rem; }
+  .badge { flex: 1; background: var(--panel); border: 1px solid var(--hairline); border-radius: 8px; padding: 0.9rem 0.5rem; text-align: center; }
+  .badge-num {
+    font-family: 'Bebas Neue', sans-serif; font-size: 24px;
+    background: linear-gradient(90deg, var(--orange), var(--pink) 65%, var(--purple));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .badge-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  .disclaimer { padding: 1.25rem 1.5rem; font-size: 12px; color: var(--text-faint); line-height: 1.6; border-top: 1px solid var(--hairline); }
+
+  @media (max-width: 640px) {
+    .body { grid-template-columns: 1fr; }
+    .team-abbr { font-size: 36px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="gradient-bar"></div>
+
+  <div class="brand-row">
+    <div class="brand-left">
+      <div class="brand-mark">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+          <path d="M3 17 L9 11 L13 15 L21 6" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M15 6 L21 6 L21 12" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="brand-name">Vantage</span>
+    </div>
+    <div class="game-picker">
+      <input type="number" id="game-input" placeholder="Game ID">
+      <button id="load-btn">Load</button>
+    </div>
+  </div>
+
+  <div id="status" class="status-banner hidden"></div>
+
+  <div id="content" class="hidden">
+    <div class="scoreboard">
+      <div class="meta-row">
+        <span><span class="league">NFL</span></span>
+        <span id="meta-game-id"></span>
+      </div>
+      <div class="matchup">
+        <div class="team-block away">
+          <div class="team-badge-lg" id="away-badge"></div>
+          <div class="team-abbr" id="away-abbr"></div>
+          <div class="team-name" id="away-name"></div>
+        </div>
+        <div class="at-symbol">@</div>
+        <div class="team-block home">
+          <div class="team-badge-lg" id="home-badge"></div>
+          <div class="team-abbr" id="home-abbr"></div>
+          <div class="team-name" id="home-name"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="body">
+      <div class="col">
+        <p class="section-label">Model win probability (live from backend)</p>
+
+        <div class="gauge-row home">
+          <div class="gauge-head">
+            <span class="gauge-team" id="home-gauge-label"></span>
+            <span class="gauge-numbers" id="home-gauge-pct"></span>
+          </div>
+          <div class="gauge-track"><div class="gauge-fill" id="home-gauge-fill"></div></div>
+        </div>
+
+        <div class="gauge-row away">
+          <div class="gauge-head">
+            <span class="gauge-team" id="away-gauge-label"></span>
+            <span class="gauge-numbers" id="away-gauge-pct"></span>
+          </div>
+          <div class="gauge-track"><div class="gauge-fill" id="away-gauge-fill"></div></div>
+        </div>
+
+        <div class="edge-line" id="edge-line"></div>
+      </div>
+
+      <div class="col">
+        <p class="section-label">Why the model says this</p>
+        <div id="factors-list"></div>
+
+        <div class="badges">
+          <div class="badge">
+            <div class="badge-num" id="badge-confidence"></div>
+            <div class="badge-label">Confidence</div>
+          </div>
+          <div class="badge">
+            <div class="badge-num" id="badge-sample-size"></div>
+            <div class="badge-label">Sample size</div>
+          </div>
+          <div class="badge">
+            <div class="badge-num" id="badge-games"></div>
+            <div class="badge-label">Games used</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      This is a statistical estimate, not a certainty — the model can be wrong. Confidence and sample size describe
+      how much data the model had to go on, not how likely the prediction is to be correct. Nothing here is
+      betting advice. No market/odds comparison is shown yet — that data source isn't built.
+    </div>
+  </div>
+
+</div>
+<script>
+  var API_BASE = 'http://localhost:8000';
+
+  var statusEl = document.getElementById('status');
+  var contentEl = document.getElementById('content');
+  var gameInput = document.getElementById('game-input');
+
+  function showStatus(message, isError) {
+    statusEl.textContent = message;
+    statusEl.className = 'status-banner' + (isError ? ' error' : '');
+    statusEl.classList.remove('hidden');
+  }
+
+  function hideStatus() {
+    statusEl.classList.add('hidden');
+  }
+
+  function badgeColorFor(name) {
+    var hash = 0;
+    for (var i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    var hue = Math.abs(hash) % 360;
+    return 'hsl(' + hue + ', 55%, 40%)';
+  }
+
+  function abbrFor(name) {
+    var words = name.split(' ');
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    return name.substring(0, 3).toUpperCase();
+  }
+
+  function renderFactors(factors) {
+    var container = document.getElementById('factors-list');
+    container.innerHTML = '';
+    if (!factors || factors.length === 0) {
+      var empty = document.createElement('div');
+      empty.className = 'no-factors';
+      empty.textContent = 'No standout factors — the two teams look evenly matched on the data available.';
+      container.appendChild(empty);
+      return;
+    }
+    factors.forEach(function (f) {
+      var row = document.createElement('div');
+      row.className = 'factor';
+      var mark = document.createElement('span');
+      mark.className = 'factor-mark ' + (f.favors === 'home' ? 'pos' : 'neg');
+      mark.textContent = f.favors === 'home' ? '+' : '−';
+      var text = document.createElement('span');
+      text.className = 'factor-text';
+      text.textContent = f.text;
+      row.appendChild(mark);
+      row.appendChild(text);
+      container.appendChild(row);
+    });
+  }
+
+  function render(data) {
+    document.getElementById('meta-game-id').textContent = 'Game ' + data.game_id;
+
+    var homeName = data.home_team;
+    var awayName = data.away_team;
+    var homeAbbr = abbrFor(homeName);
+    var awayAbbr = abbrFor(awayName);
+    var homeColor = badgeColorFor(homeName);
+    var awayColor = badgeColorFor(awayName);
+
+    document.getElementById('home-name').textContent = homeName;
+    document.getElementById('away-name').textContent = awayName;
+    document.getElementById('home-abbr').textContent = homeAbbr;
+    document.getElementById('away-abbr').textContent = awayAbbr;
+    document.getElementById('home-abbr').style.color = homeColor;
+    document.getElementById('away-abbr').style.color = awayColor;
+
+    var homeBadge = document.getElementById('home-badge');
+    homeBadge.textContent = homeAbbr;
+    homeBadge.style.background = homeColor;
+    homeBadge.style.color = '#fff';
+
+    var awayBadge = document.getElementById('away-badge');
+    awayBadge.textContent = awayAbbr;
+    awayBadge.style.background = awayColor;
+    awayBadge.style.color = '#fff';
+
+    var homeProb = data.model_win_probability.home;
+    var awayProb = data.model_win_probability.away;
+
+    document.getElementById('home-gauge-label').textContent = homeName;
+    document.getElementById('away-gauge-label').textContent = awayName;
+
+    if (homeProb === null || awayProb === null) {
+      document.getElementById('home-gauge-pct').textContent = '—';
+      document.getElementById('away-gauge-pct').textContent = '—';
+      document.getElementById('home-gauge-fill').style.width = '0%';
+      document.getElementById('away-gauge-fill').style.width = '0%';
+      document.getElementById('edge-line').textContent =
+        'No Elo prediction on file for this game yet -- run /features/nfl/elo/compute.';
+    } else {
+      var homePct = Math.round(homeProb * 100);
+      var awayPct = Math.round(awayProb * 100);
+      document.getElementById('home-gauge-pct').textContent = homePct + '%';
+      document.getElementById('away-gauge-pct').textContent = awayPct + '%';
+      document.getElementById('home-gauge-fill').style.width = homePct + '%';
+      document.getElementById('away-gauge-fill').style.width = awayPct + '%';
+
+      var leader = homePct >= awayPct ? homeName : awayName;
+      var leaderPct = Math.max(homePct, awayPct);
+      document.getElementById('edge-line').innerHTML =
+        'Model favors <b>' + leader + '</b> at ' + leaderPct + '%.';
+    }
+
+    renderFactors(data.factors);
+
+    document.getElementById('badge-confidence').textContent = data.confidence;
+    document.getElementById('badge-sample-size').textContent =
+      data.sample_size.charAt(0).toUpperCase() + data.sample_size.slice(1);
+    document.getElementById('badge-games').textContent = data.sample_size_games;
+
+    contentEl.classList.remove('hidden');
+  }
+
+  function loadGame(gameId) {
+    contentEl.classList.add('hidden');
+    showStatus('Loading game ' + gameId + ' from the backend...', false);
+
+    fetch(API_BASE + '/games/' + gameId + '/explain')
+      .then(function (resp) {
+        if (!resp.ok) {
+          return resp.json().catch(function () { return {}; }).then(function (err) {
+            throw new Error(err.detail || ('Server returned ' + resp.status));
+          });
+        }
+        return resp.json();
+      })
+      .then(function (data) {
+        hideStatus();
+        render(data);
+      })
+      .catch(function (err) {
+        showStatus(
+          'Could not load game ' + gameId + ': ' + err.message +
+          ' (Is the backend running at ' + API_BASE + '? CORS must be enabled -- see main.py.)',
+          true
+        );
+      });
+  }
+
+  document.getElementById('load-btn').addEventListener('click', function () {
+    var id = gameInput.value;
+    if (id) loadGame(id);
+  });
+  gameInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') document.getElementById('load-btn').click();
+  });
+
+  var params = new URLSearchParams(window.location.search);
+  var initialId = params.get('game') || '22';
+  gameInput.value = initialId;
+  loadGame(initialId);
+</script>
+</body>
+</html>
