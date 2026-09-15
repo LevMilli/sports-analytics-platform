@@ -1,24 +1,5 @@
 """
 Shared base connector for BALLDONTLIE's per-sport APIs.
-
-Why this exists:
-Unlike API-Sports, BALLDONTLIE's sports genuinely differ in response
-shape (MLB nests scores under home_team_data/away_team_data; NBA and
-NCAAF use "visitor_team" instead of "away_team"; NHL uses "game_date"
-instead of "date"). Rather than force a fake common shape, this base
-class only handles what really is identical across all of
-BALLDONTLIE's sports: auth, HTTP, and error handling. Each sport's
-connector owns its own _map_game translation.
-
-Confirmed directly against BALLDONTLIE's own OpenAPI specs and docs
-pages (not guessed):
-- Auth header: "Authorization: <key>" (no "Bearer" prefix)
-- Base URL pattern: https://api.balldontlie.io/<sport>/v1
-- Games endpoint accepts a `dates[]` array parameter -- multiple dates
-  can be requested in a single call, unlike API-Sports which required
-  one request per day
-- Free tier explicitly includes the Games endpoint for every sport
-  (confirmed in both the NBA and MLB account-tier tables)
 """
 
 from typing import Dict, Any, List
@@ -27,7 +8,7 @@ import httpx
 
 
 class BallDontLieBaseConnector:
-    BASE_URL: str = ""  # set per sport, e.g. "https://api.balldontlie.io/mlb/v1"
+    BASE_URL: str = ""
     provider_name: str = "balldontlie_base"
 
     def __init__(self, api_key: str, timeout: float = 10.0):
@@ -59,6 +40,24 @@ class BallDontLieBaseConnector:
         resp.raise_for_status()
         return resp.json()
 
+    def _get_all_pages(self, path: str, params: Dict[str, Any]) -> List[Dict[str, Any]]:
+        all_data: List[Dict[str, Any]] = []
+        page_params = dict(params)
+        page_params["per_page"] = 100
+        cursor = None
+
+        while True:
+            if cursor is not None:
+                page_params["cursor"] = cursor
+            page = self._get(path, page_params)
+            all_data.extend(page.get("data", []))
+            meta = page.get("meta") or {}
+            cursor = meta.get("next_cursor")
+            if not cursor:
+                break
+
+        return all_data
+
     @staticmethod
     def _daterange(start: str, end: str) -> List[str]:
         from datetime import datetime, timedelta
@@ -72,9 +71,6 @@ class BallDontLieBaseConnector:
         return days
 
 
-# Shared status_state -> our vocabulary mapping. Confirmed identical
-# across BALLDONTLIE's NBA, MLB, NHL, and NCAAF OpenAPI specs
-# (the CompetitionStatusState enum is copy-identical in all of them).
 STATUS_STATE_MAP = {
     "scheduled": "scheduled",
     "in_progress": "live",

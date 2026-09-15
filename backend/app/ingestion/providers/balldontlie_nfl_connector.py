@@ -33,10 +33,10 @@ class BallDontLieNFLConnector(BallDontLieBaseConnector):
         start, end = date_range
         dates = self._daterange(start, end)
 
-        data = self._get("/games", {"dates[]": dates})
+        raw_games = self._get_all_pages("/games", {"dates[]": dates})
 
         games = []
-        for raw in data.get("data", []):
+        for raw in raw_games:
             mapped = self._map_game(raw)
             if mapped is not None:
                 games.append(mapped)
