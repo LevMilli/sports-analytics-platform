@@ -59,6 +59,34 @@
   .status-banner.error { border-color: #E1546A; color: #E1546A; }
   .hidden { display: none !important; }
 
+  .signal-feed { margin: 1.25rem 1.5rem 0; }
+  .signal-feed-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 0.7rem;
+    font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint);
+  }
+  .signal-pulse {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--pink);
+    box-shadow: 0 0 0 0 rgba(240,70,110,0.6);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(240,70,110,0.5); }
+    70% { box-shadow: 0 0 0 6px rgba(240,70,110,0); }
+    100% { box-shadow: 0 0 0 0 rgba(240,70,110,0); }
+  }
+  .signal-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+  .signal-card {
+    flex: none; width: 280px; background: var(--panel); border: 1px solid var(--hairline);
+    border-radius: 10px; padding: 0.8rem 0.9rem; text-decoration: none; color: inherit;
+    transition: border-color 0.15s ease;
+  }
+  .signal-card:hover { border-color: var(--pink); }
+  .signal-card.warning { border-left: 3px solid var(--pink); }
+  .signal-card.info { border-left: 3px solid var(--purple); }
+  .signal-card-head { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .signal-card-text { font-size: 13px; line-height: 1.45; color: var(--text); }
+  .signal-empty { font-size: 13px; color: var(--text-faint); font-style: italic; padding: 0.5rem 0; }
+
   .day-header { padding: 1.75rem 1.5rem 1rem; }
   .day-title { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 0.01em; }
   .day-sub { font-size: 13px; color: var(--text-muted); }
@@ -94,6 +122,7 @@
   @media (max-width: 640px) {
     .game-row { grid-template-columns: auto 1fr auto; }
     .mini-gauge, .status-chip { display: none; }
+    .signal-card { width: 240px; }
   }
 </style>
 </head>
@@ -123,6 +152,13 @@
 
   <div id="status" class="status-banner hidden"></div>
 
+  <div class="signal-feed">
+    <div class="signal-feed-header"><span class="signal-pulse"></span>Signal Feed — active alerts</div>
+    <div class="signal-scroll" id="signal-scroll">
+      <div class="signal-empty">Loading alerts...</div>
+    </div>
+  </div>
+
   <div class="day-header">
     <div class="day-title">NFL Games</div>
     <div class="day-sub" id="game-count"></div>
@@ -137,6 +173,7 @@
   var listEl = document.getElementById('game-list');
   var countEl = document.getElementById('game-count');
   var filterEl = document.getElementById('status-filter');
+  var signalScrollEl = document.getElementById('signal-scroll');
 
   function showStatus(message, isError) {
     statusEl.textContent = message;
@@ -162,6 +199,48 @@
   function formatKickoff(isoString) {
     var d = new Date(isoString);
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  var ALERT_ICONS = {
+    model_disagreement: '\u26A1',
+    low_confidence: '\uD83D\uDD0D'
+  };
+
+  function renderAlerts(alerts) {
+    signalScrollEl.innerHTML = '';
+    if (!alerts || alerts.length === 0) {
+      var empty = document.createElement('div');
+      empty.className = 'signal-empty';
+      empty.textContent = 'No active alerts right now -- models are in agreement across scheduled games.';
+      signalScrollEl.appendChild(empty);
+      return;
+    }
+    alerts.forEach(function (a) {
+      var card = document.createElement('a');
+      card.className = 'signal-card ' + a.severity;
+      card.href = 'game_detail_live.html?game=' + a.game_id;
+
+      var head = document.createElement('div');
+      head.className = 'signal-card-head';
+      head.textContent = (ALERT_ICONS[a.alert_type] || '\u2022') + ' ' + a.alert_type.replace('_', ' ');
+
+      var text = document.createElement('div');
+      text.className = 'signal-card-text';
+      text.textContent = a.message;
+
+      card.appendChild(head);
+      card.appendChild(text);
+      signalScrollEl.appendChild(card);
+    });
+  }
+
+  function loadAlerts() {
+    fetch(API_BASE + '/alerts/nfl')
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) { renderAlerts(data.alerts); })
+      .catch(function () {
+        signalScrollEl.innerHTML = '<div class="signal-empty">Could not load alerts.</div>';
+      });
   }
 
   function renderGames(games) {
@@ -239,7 +318,7 @@
 
       var arrow = document.createElement('span');
       arrow.className = 'arrow';
-      arrow.textContent = '›';
+      arrow.textContent = '\u203A';
       row.appendChild(arrow);
 
       listEl.appendChild(row);
@@ -272,7 +351,9 @@
   }
 
   filterEl.addEventListener('change', loadGames);
+  loadAlerts();
   loadGames();
 </script>
 </body>
+
 </html>
