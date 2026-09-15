@@ -33,7 +33,7 @@ from app.features.explain_pipeline import explain_game
 from app.features.logistic_pipeline import train_logistic_for_league
 from app.features.alerts_pipeline import generate_alerts_for_league
 from app.features.games_list import list_games_for_league
-from app.features.auth_pipeline import sign_up, log_in, log_out, get_current_user
+from app.features.auth_pipeline import sign_up, log_in, log_out, get_current_user, update_profile, deactivate_account
 from app.db.models.core import Game, League, Team, Alert
 
 app = FastAPI(title="Sports Data Analysis Platform", version="0.1.0-mvp")
@@ -347,16 +347,23 @@ def seed_demo_data(db: Session = Depends(get_db)):
 class AuthRequest(BaseModel):
     email: str
     password: str
+    full_name: str = None
+
+
+class ProfileUpdateRequest(BaseModel):
+    full_name: str = None
+    phone: str = None
+    email: str = None
 
 
 @app.post("/auth/signup")
 def signup_endpoint(body: AuthRequest, db: Session = Depends(get_db)):
     try:
-        user, token = sign_up(db, body.email, body.password)
+        user, token = sign_up(db, body.email, body.password, full_name=body.full_name)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    return {"token": token, "email": user.email}
+    return {"token": token, "email": user.email, "full_name": user.full_name}
 
 
 @app.post("/auth/login")
@@ -366,7 +373,7 @@ def login_endpoint(body: AuthRequest, db: Session = Depends(get_db)):
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
 
-    return {"token": token, "email": user.email}
+    return {"token": token, "email": user.email, "full_name": user.full_name}
 
 
 @app.post("/auth/logout")
@@ -376,9 +383,33 @@ def logout_endpoint(authorization: str = Header(None), db: Session = Depends(get
     return {"status": "logged_out"}
 
 
+@app.patch("/auth/profile")
+def update_profile_endpoint(body: ProfileUpdateRequest, authorization: str = Header(None), db: Session = Depends(get_db)):
+    user = get_current_user(db, authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not logged in or session expired.")
+
+    try:
+        updated = update_profile(db, user, full_name=body.full_name, phone=body.phone, email=body.email)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {"email": updated.email, "full_name": updated.full_name, "phone": updated.phone}
+
+
+@app.post("/auth/deactivate")
+def deactivate_endpoint(authorization: str = Header(None), db: Session = Depends(get_db)):
+    user = get_current_user(db, authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not logged in or session expired.")
+
+    deactivate_account(db, user)
+    return {"status": "deactivated"}
+
+
 @app.get("/auth/me")
 def me_endpoint(authorization: str = Header(None), db: Session = Depends(get_db)):
     user = get_current_user(db, authorization)
     if not user:
         raise HTTPException(status_code=401, detail="Not logged in or session expired.")
-    return {"email": user.email}
+    return {"email": user.email, "full_name": user.full_name, "phone": user.phone}

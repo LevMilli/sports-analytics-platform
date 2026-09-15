@@ -203,6 +203,9 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     password_salt = Column(String(64), nullable=False)
+    full_name = Column(String(150))
+    phone = Column(String(30))
+    is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), default=utcnow)
 
 

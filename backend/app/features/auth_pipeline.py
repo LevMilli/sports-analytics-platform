@@ -3,13 +3,10 @@ Authentication pipeline.
 
 Password hashing uses PBKDF2-HMAC-SHA256 from Python's own hashlib --
 no external dependency, no bcrypt/passlib needed. Same algorithm
-Django uses by default. Each password gets its own random salt, so
-two users with the same password never produce the same stored hash.
+Django uses by default. Each password gets its own random salt.
 
 Sessions are opaque random tokens, stored in their own table with an
-expiry -- not JWTs. That makes logout instantaneous (delete the row)
-rather than "wait for the token to expire," and never requires
-managing a signing secret.
+expiry -- not JWTs. That makes logout instantaneous.
 """
 
 import hashlib
@@ -46,7 +43,7 @@ def _create_session(db: DbSession, user_id: int) -> str:
     return token
 
 
-def sign_up(db: DbSession, email: str, password: str) -> Tuple[User, str]:
+def sign_up(db: DbSession, email: str, password: str, full_name: Optional[str] = None) -> Tuple[User, str]:
     email = email.strip().lower()
     if not email or "@" not in email:
         raise ValueError("A valid email address is required.")
@@ -59,7 +56,7 @@ def sign_up(db: DbSession, email: str, password: str) -> Tuple[User, str]:
 
     salt = _make_salt()
     password_hash = _hash_password(password, salt)
-    user = User(email=email, password_hash=password_hash, password_salt=salt)
+    user = User(email=email, password_hash=password_hash, password_salt=salt, full_name=full_name)
     db.add(user)
     db.flush()
 
@@ -73,6 +70,8 @@ def log_in(db: DbSession, email: str, password: str) -> Tuple[User, str]:
     user = db.query(User).filter_by(email=email).first()
     if not user or not _verify_password(password, user.password_salt, user.password_hash):
         raise ValueError("Incorrect email or password.")
+    if not user.is_active:
+        raise ValueError("This account has been deactivated.")
 
     token = _create_session(db, user.id)
     db.commit()
@@ -87,9 +86,39 @@ def get_current_user(db: DbSession, token: str) -> Optional[User]:
         return None
     if session.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
         return None
-    return db.query(User).filter_by(id=session.user_id).first()
+    user = db.query(User).filter_by(id=session.user_id).first()
+    if user and not user.is_active:
+        return None
+    return user
 
 
 def log_out(db: DbSession, token: str) -> None:
     db.query(Session_).filter_by(token=token).delete()
+    db.commit()
+
+
+def update_profile(db: DbSession, user: User, full_name: Optional[str] = None,
+                    phone: Optional[str] = None, email: Optional[str] = None) -> User:
+    if email is not None:
+        email = email.strip().lower()
+        if not email or "@" not in email:
+            raise ValueError("A valid email address is required.")
+        if email != user.email:
+            existing = db.query(User).filter_by(email=email).first()
+            if existing:
+                raise ValueError("An account with this email already exists.")
+            user.email = email
+
+    if full_name is not None:
+        user.full_name = full_name.strip() or None
+    if phone is not None:
+        user.phone = phone.strip() or None
+
+    db.commit()
+    return user
+
+
+def deactivate_account(db: DbSession, user: User) -> None:
+    user.is_active = False
+    db.query(Session_).filter_by(user_id=user.id).delete()
     db.commit()
