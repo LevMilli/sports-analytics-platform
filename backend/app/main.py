@@ -284,3 +284,58 @@ def list_nfl_games(status: str = None, limit: int = 50, db: Session = Depends(ge
         raise HTTPException(status_code=400, detail=str(e))
 
     return result
+
+
+@app.post("/admin/seed-demo-data")
+def seed_demo_data(db: Session = Depends(get_db)):
+    import random
+    from datetime import datetime, timezone, timedelta
+    from app.db.models.core import Sport, League, Team, Game
+
+    sport = db.query(Sport).filter_by(slug="football").first()
+    if not sport:
+        sport = Sport(name="Football", slug="football")
+        db.add(sport)
+        db.flush()
+
+    league = db.query(League).filter_by(slug="nfl").first()
+    if not league:
+        league = League(sport_id=sport.id, name="NFL", slug="nfl")
+        db.add(league)
+        db.flush()
+
+    team_names = {"1": "Test Team", "2": "Test Opponent", "3": "Test Rival", "4": "Test Challenger"}
+    teams = {}
+    for ext_id, name in team_names.items():
+        t = db.query(Team).filter_by(league_id=league.id, external_id=ext_id, provider="api_sports_nfl").first()
+        if not t:
+            t = Team(league_id=league.id, external_id=ext_id, provider="api_sports_nfl", name=name)
+            db.add(t)
+            db.flush()
+        teams[ext_id] = t
+
+    strength = {"1": 90, "2": 75, "3": 60, "4": 45}
+    team_ids = list(team_names.keys())
+    pairs = [(a, b) for i, a in enumerate(team_ids) for b in team_ids[i+1:]]
+    schedule = (pairs * 3)[:16]
+
+    random.seed(7)
+    base = datetime(2026, 10, 1, tzinfo=timezone.utc)
+    created = 0
+    for i, (a, b) in enumerate(schedule):
+        home_id, away_id = (a, b) if i % 2 == 0 else (b, a)
+        ext_id = f"seed-g{i+1}"
+        if db.query(Game).filter_by(league_id=league.id, external_id=ext_id, provider="api_sports_nfl").first():
+            continue
+        home_score = max(0, round(strength[home_id] / 4 + 3 + random.gauss(0, 4)))
+        away_score = max(0, round(strength[away_id] / 4 + random.gauss(0, 4)))
+        db.add(Game(
+            league_id=league.id, external_id=ext_id, provider="api_sports_nfl", season="2026",
+            game_date=base + timedelta(days=7 * (i // 2)),
+            home_team_id=teams[home_id].id, away_team_id=teams[away_id].id,
+            status="final", home_score=home_score, away_score=away_score,
+        ))
+        created += 1
+
+    db.commit()
+    return {"teams_seeded": len(teams), "games_created": created}
