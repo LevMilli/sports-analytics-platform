@@ -5,8 +5,9 @@ FastAPI application entrypoint.
 from datetime import date
 from typing import Type, Union
 
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -32,6 +33,7 @@ from app.features.explain_pipeline import explain_game
 from app.features.logistic_pipeline import train_logistic_for_league
 from app.features.alerts_pipeline import generate_alerts_for_league
 from app.features.games_list import list_games_for_league
+from app.features.auth_pipeline import sign_up, log_in, log_out, get_current_user
 from app.db.models.core import Game, League, Team, Alert
 
 app = FastAPI(title="Sports Data Analysis Platform", version="0.1.0-mvp")
@@ -340,3 +342,43 @@ def seed_demo_data(db: Session = Depends(get_db)):
 
     db.commit()
     return {"teams_seeded": len(teams), "games_created": created}
+
+
+class AuthRequest(BaseModel):
+    email: str
+    password: str
+
+
+@app.post("/auth/signup")
+def signup_endpoint(body: AuthRequest, db: Session = Depends(get_db)):
+    try:
+        user, token = sign_up(db, body.email, body.password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {"token": token, "email": user.email}
+
+
+@app.post("/auth/login")
+def login_endpoint(body: AuthRequest, db: Session = Depends(get_db)):
+    try:
+        user, token = log_in(db, body.email, body.password)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    return {"token": token, "email": user.email}
+
+
+@app.post("/auth/logout")
+def logout_endpoint(authorization: str = Header(None), db: Session = Depends(get_db)):
+    if authorization:
+        log_out(db, authorization)
+    return {"status": "logged_out"}
+
+
+@app.get("/auth/me")
+def me_endpoint(authorization: str = Header(None), db: Session = Depends(get_db)):
+    user = get_current_user(db, authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not logged in or session expired.")
+    return {"email": user.email}

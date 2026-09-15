@@ -1,5 +1,5 @@
 """
-ORM models mirroring the tables needed for Milestones 1-9.
+ORM models mirroring the tables needed for Milestones 1-9, plus auth.
 """
 
 from datetime import datetime, timezone
@@ -194,6 +194,26 @@ class Alert(Base):
     message = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), default=utcnow)
     updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String(255), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    password_salt = Column(String(64), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+
+
+class Session_(Base):
+    __tablename__ = "sessions"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    token = Column(String(64), unique=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
 
 
 class IngestionLog(Base):
