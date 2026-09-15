@@ -19,6 +19,8 @@
     --purple: #A855F7;
     --positive: #4FAE7A;
     --negative: #E1546A;
+    --elo-color: #F0466E;
+    --logistic-color: #A855F7;
   }
   * { box-sizing: border-box; }
   body {
@@ -43,6 +45,8 @@
     background: linear-gradient(90deg, var(--orange), var(--pink) 60%, var(--purple));
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
+  .nav-cta { font-size: 13px; color: var(--text-muted); text-decoration: none; margin-right: 1rem; }
+  .nav-cta:hover { color: var(--pink); }
   .game-picker { display: flex; gap: 6px; align-items: center; }
   .game-picker input {
     width: 64px; background: var(--panel); border: 1px solid var(--hairline);
@@ -92,6 +96,36 @@
   .edge-line { margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid var(--hairline); font-size: 14px; color: var(--text-muted); }
   .edge-line b { color: var(--text); font-weight: 500; }
 
+  .consensus-section { margin-top: 1.75rem; padding-top: 1.5rem; border-top: 1px solid var(--hairline); }
+  .consensus-track {
+    position: relative; height: 34px; margin: 1.25rem 4px 0.75rem;
+    background: var(--panel-raised); border-radius: 17px; overflow: visible;
+  }
+  .consensus-connector {
+    position: absolute; top: 50%; height: 4px; transform: translateY(-50%);
+    border-radius: 2px; transition: left 0.4s ease, width 0.4s ease, background 0.4s ease;
+  }
+  .consensus-connector.agree { background: var(--positive); }
+  .consensus-connector.disagree { background: var(--negative); }
+  .consensus-marker {
+    position: absolute; top: 50%; width: 20px; height: 20px; border-radius: 50%;
+    transform: translate(-50%, -50%); border: 3px solid var(--bg);
+    transition: left 0.4s ease; cursor: default;
+  }
+  .consensus-marker.elo { background: var(--elo-color); z-index: 2; }
+  .consensus-marker.logistic { background: var(--logistic-color); z-index: 3; }
+  .consensus-legend { display: flex; gap: 1.25rem; font-size: 12px; color: var(--text-muted); margin-bottom: 0.9rem; }
+  .consensus-legend .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; }
+  .consensus-legend .dot.elo { background: var(--elo-color); }
+  .consensus-legend .dot.logistic { background: var(--logistic-color); }
+  .consensus-legend b { color: var(--text); font-weight: 600; }
+  .consensus-verdict {
+    font-size: 13px; padding: 0.6rem 0.8rem; border-radius: 7px; line-height: 1.5;
+  }
+  .consensus-verdict.agree { background: rgba(79,174,122,0.1); color: var(--positive); border: 1px solid rgba(79,174,122,0.25); }
+  .consensus-verdict.disagree { background: rgba(225,84,106,0.1); color: var(--negative); border: 1px solid rgba(225,84,106,0.25); }
+  .consensus-verdict.unavailable { background: var(--panel); color: var(--text-faint); border: 1px solid var(--hairline); font-style: italic; }
+
   .factor { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--hairline); font-size: 14px; line-height: 1.5; }
   .factor:last-of-type { border-bottom: none; }
   .factor-mark { flex: none; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; margin-top: 1px; }
@@ -132,9 +166,12 @@
       </div>
       <span class="brand-name">Vantage</span>
     </div>
-    <div class="game-picker">
-      <input type="number" id="game-input" placeholder="Game ID">
-      <button id="load-btn">Load</button>
+    <div style="display:flex; align-items:center;">
+      <a href="dashboard_live.html" class="nav-cta">Dashboard</a>
+      <div class="game-picker">
+        <input type="number" id="game-input" placeholder="Game ID">
+        <button id="load-btn">Load</button>
+      </div>
     </div>
   </div>
 
@@ -163,7 +200,7 @@
 
     <div class="body">
       <div class="col">
-        <p class="section-label">Model win probability (live from backend)</p>
+        <p class="section-label">Model win probability (Elo, live from backend)</p>
 
         <div class="gauge-row home">
           <div class="gauge-head">
@@ -182,6 +219,20 @@
         </div>
 
         <div class="edge-line" id="edge-line"></div>
+
+        <div class="consensus-section">
+          <p class="section-label">Model Consensus — Elo vs. Logistic Regression</p>
+          <div class="consensus-track" id="consensus-track">
+            <div class="consensus-connector" id="consensus-connector"></div>
+            <div class="consensus-marker elo" id="marker-elo" title="Elo"></div>
+            <div class="consensus-marker logistic" id="marker-logistic" title="Logistic"></div>
+          </div>
+          <div class="consensus-legend">
+            <span><span class="dot elo"></span>Elo: <b id="elo-pct-label">—</b></span>
+            <span><span class="dot logistic"></span>Logistic: <b id="logistic-pct-label">—</b></span>
+          </div>
+          <div class="consensus-verdict" id="consensus-verdict">Loading...</div>
+        </div>
       </div>
 
       <div class="col">
@@ -272,6 +323,53 @@
     });
   }
 
+  function renderConsensus(data) {
+    var eloPct = data.model_win_probability.home;
+    var logisticPct = data.logistic_win_probability.home;
+    var verdictEl = document.getElementById('consensus-verdict');
+    var connectorEl = document.getElementById('consensus-connector');
+    var eloMarker = document.getElementById('marker-elo');
+    var logisticMarker = document.getElementById('marker-logistic');
+
+    if (eloPct === null || logisticPct === null) {
+      document.getElementById('elo-pct-label').textContent = eloPct !== null ? Math.round(eloPct * 100) + '%' : '—';
+      document.getElementById('logistic-pct-label').textContent = '—';
+      eloMarker.style.left = eloPct !== null ? (eloPct * 100) + '%' : '50%';
+      logisticMarker.style.left = '50%';
+      logisticMarker.style.opacity = '0.25';
+      connectorEl.style.width = '0px';
+      verdictEl.className = 'consensus-verdict unavailable';
+      verdictEl.textContent = 'Logistic regression hasn\'t been trained on this game yet -- showing Elo only.';
+      return;
+    }
+
+    logisticMarker.style.opacity = '1';
+    var eloLeft = eloPct * 100;
+    var logisticLeft = logisticPct * 100;
+    eloMarker.style.left = eloLeft + '%';
+    logisticMarker.style.left = logisticLeft + '%';
+    document.getElementById('elo-pct-label').textContent = Math.round(eloPct * 100) + '%';
+    document.getElementById('logistic-pct-label').textContent = Math.round(logisticPct * 100) + '%';
+
+    var left = Math.min(eloLeft, logisticLeft);
+    var width = Math.abs(eloLeft - logisticLeft);
+    connectorEl.style.left = left + '%';
+    connectorEl.style.width = width + '%';
+
+    var agree = data.consensus ? data.consensus.agree : null;
+    var gapPct = data.consensus ? Math.round(data.consensus.gap * 100) : Math.round(width);
+
+    if (agree) {
+      connectorEl.className = 'consensus-connector agree';
+      verdictEl.className = 'consensus-verdict agree';
+      verdictEl.textContent = 'Models agree, within ' + gapPct + '% of each other.';
+    } else {
+      connectorEl.className = 'consensus-connector disagree';
+      verdictEl.className = 'consensus-verdict disagree';
+      verdictEl.textContent = 'Models split by ' + gapPct + '% -- worth a second look before trusting either alone.';
+    }
+  }
+
   function render(data) {
     document.getElementById('meta-game-id').textContent = 'Game ' + data.game_id;
 
@@ -326,6 +424,7 @@
         'Model favors <b>' + leader + '</b> at ' + leaderPct + '%.';
     }
 
+    renderConsensus(data);
     renderFactors(data.factors);
 
     document.getElementById('badge-confidence').textContent = data.confidence;
@@ -356,7 +455,7 @@
       .catch(function (err) {
         showStatus(
           'Could not load game ' + gameId + ': ' + err.message +
-          ' (Is the backend running at ' + API_BASE + '? CORS must be enabled -- see main.py.)',
+          ' (Is the backend running at ' + API_BASE + '?)',
           true
         );
       });
@@ -371,7 +470,7 @@
   });
 
   var params = new URLSearchParams(window.location.search);
-  var initialId = params.get('game') || '22';
+  var initialId = params.get('game') || '17';
   gameInput.value = initialId;
   loadGame(initialId);
 </script>
