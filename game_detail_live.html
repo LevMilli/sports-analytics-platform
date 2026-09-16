@@ -30,7 +30,19 @@
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
   }
-  .page { max-width: 920px; margin: 0 auto; padding: 0 0 4rem; }
+  .page { max-width: 1240px; margin: 0 auto; padding: 0 0 4rem; }
+  .layout { display: grid; grid-template-columns: 1fr 300px; gap: 1.5rem; align-items: start; }
+  .main-col { min-width: 0; }
+
+  .sidebar { position: sticky; top: 1.5rem; }
+  .sidebar-card { background: var(--panel); border: 1px solid var(--hairline); border-radius: 12px; padding: 1.1rem; margin-top: 1.25rem; }
+  .sidebar-title { font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 0.9rem; }
+  .history-chart-wrap { position: relative; }
+  .history-empty { font-size: 12px; color: var(--text-faint); font-style: italic; line-height: 1.5; }
+  .history-legend { display: flex; gap: 1rem; font-size: 11px; color: var(--text-muted); margin-top: 0.7rem; }
+  .history-legend .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: middle; }
+  .history-legend .dot.elo { background: var(--elo-color); }
+  .history-legend .dot.logistic { background: var(--logistic-color); }
   .gradient-bar { height: 4px; background: linear-gradient(90deg, var(--orange), var(--pink) 55%, var(--purple)); }
 
   .brand-row { display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem 0; }
@@ -181,6 +193,8 @@
   .disclaimer { padding: 1.25rem 1.5rem; font-size: 12px; color: var(--text-faint); line-height: 1.6; border-top: 1px solid var(--hairline); }
 
   @media (max-width: 640px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { position: static; }
     .body { grid-template-columns: 1fr; }
     .team-abbr { font-size: 36px; }
   }
@@ -237,6 +251,9 @@
   </div>
 
   <div id="status" class="status-banner hidden"></div>
+
+  <div class="layout">
+    <div class="main-col">
 
   <div id="content" class="hidden">
     <div class="scoreboard">
@@ -322,6 +339,17 @@
       how much data the model had to go on, not how likely the prediction is to be correct. Nothing here is
       betting advice. No market/odds comparison is shown yet — that data source isn't built.
     </div>
+  </div>
+    </div>
+
+    <aside class="sidebar">
+      <div class="sidebar-card">
+        <div class="sidebar-title">Prediction History</div>
+        <div class="history-chart-wrap" id="history-chart-wrap">
+          <div class="history-empty">Loading history...</div>
+        </div>
+      </div>
+    </aside>
   </div>
 
 </div>
@@ -496,9 +524,67 @@
     contentEl.classList.remove('hidden');
   }
 
+  var HISTORY_COLORS = { elo: '#F0466E', logistic: '#A855F7' };
+
+  function renderHistoryChart(points) {
+    var wrap = document.getElementById('history-chart-wrap');
+    var byModel = {};
+    points.forEach(function (p) {
+      if (!byModel[p.model_name]) byModel[p.model_name] = [];
+      byModel[p.model_name].push(p);
+    });
+
+    var modelNames = Object.keys(byModel);
+    var enoughData = modelNames.some(function (m) { return byModel[m].length >= 2; });
+
+    if (points.length === 0) {
+      wrap.innerHTML = '<div class="history-empty">No history recorded for this game yet.</div>';
+      return;
+    }
+    if (!enoughData) {
+      wrap.innerHTML = '<div class="history-empty">History tracking just started -- only one data point so far. Check back after the next prediction run.</div>';
+      return;
+    }
+
+    var width = 260, height = 100, padding = 8;
+    var allTimes = points.map(function (p) { return new Date(p.recorded_at).getTime(); });
+    var minTime = Math.min.apply(null, allTimes);
+    var maxTime = Math.max.apply(null, allTimes);
+    var timeRange = (maxTime - minTime) || 1;
+
+    var svg = '<svg width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '">';
+    modelNames.forEach(function (modelName) {
+      var series = byModel[modelName];
+      if (series.length < 2) return;
+      var coords = series.map(function (p) {
+        var t = new Date(p.recorded_at).getTime();
+        var x = padding + ((t - minTime) / timeRange) * (width - 2 * padding);
+        var y = padding + (1 - p.win_probability) * (height - 2 * padding);
+        return x.toFixed(1) + ',' + y.toFixed(1);
+      });
+      var color = HISTORY_COLORS[modelName] || '#A6919B';
+      svg += '<polyline points="' + coords.join(' ') + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    });
+    svg += '</svg>';
+
+    wrap.innerHTML = svg;
+  }
+
+  function loadHistory(gameId) {
+    var wrap = document.getElementById('history-chart-wrap');
+    wrap.innerHTML = '<div class="history-empty">Loading history...</div>';
+    fetch(API_BASE + '/games/' + gameId + '/history')
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) { renderHistoryChart(data.points || []); })
+      .catch(function () {
+        wrap.innerHTML = '<div class="history-empty">Could not load history.</div>';
+      });
+  }
+
   function loadGame(gameId) {
     contentEl.classList.add('hidden');
     showStatus('Loading game ' + gameId + ' from the backend...', false);
+    loadHistory(gameId);
 
     fetch(API_BASE + '/games/' + gameId + '/explain')
       .then(function (resp) {
