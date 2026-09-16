@@ -603,7 +603,13 @@
       var item = document.createElement('a');
       item.className = 'sidebar-item';
       item.href = 'game_detail_live.html?game=' + a.game_id;
-      item.textContent = (ALERT_ICONS[a.alert_type] || '\u2022') + ' ' + a.message;
+      var iconSpan = document.createElement('span');
+      iconSpan.style.marginRight = '8px';
+      iconSpan.textContent = ALERT_ICONS[a.alert_type] || '\u2022';
+      var textSpan = document.createElement('span');
+      textSpan.textContent = a.message;
+      item.appendChild(iconSpan);
+      item.appendChild(textSpan);
       sidebarList.appendChild(item);
     });
   }

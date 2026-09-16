@@ -322,7 +322,13 @@
 
       var head = document.createElement('div');
       head.className = 'signal-card-head';
-      head.textContent = (ALERT_ICONS[a.alert_type] || '\u2022') + ' ' + a.alert_type.replace('_', ' ');
+      var headIconSpan = document.createElement('span');
+      headIconSpan.style.marginRight = '6px';
+      headIconSpan.textContent = ALERT_ICONS[a.alert_type] || '\u2022';
+      var headTextSpan = document.createElement('span');
+      headTextSpan.textContent = a.alert_type.replace('_', ' ');
+      head.appendChild(headIconSpan);
+      head.appendChild(headTextSpan);
 
       var text = document.createElement('div');
       text.className = 'signal-card-text';
