@@ -1,7 +1,4 @@
 """
-Backtesting pipeline (Milestone 6, extended in Milestone 5 part 2 to
-support multiple models).
-
 Walks every COMPLETED game in a league, compares a model's pre-game
 win probability against what actually happened, and computes three
 standard forecast-quality metrics: accuracy, Brier score, and log
@@ -11,6 +8,14 @@ Elo's win probability lives on its own columns in team_game_features
 (built first, in Milestone 5 part 1). Every model after it -- starting
 with logistic regression -- reads from the generic predictions table
 instead. Same aggregation logic either way.
+
+Logistic regression is a special case: it's always retrained on ALL
+completed games for live predictions, so grading it against the
+predictions table would mean grading the model on games it already
+memorized. For "logistic" specifically, this pipeline defers to
+logistic_pipeline's own chronological holdout evaluation instead --
+the SAME honest, out-of-sample number that endpoint reports, not a
+second, looser figure that disagrees with it.
 """
 
 import math
@@ -18,6 +23,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.db.models.core import Game, League, TeamGameFeatures, Prediction, BacktestRun, IngestionLog
+from app.features.logistic_pipeline import evaluate_logistic_holdout
 
 EPSILON = 1e-6
 SUPPORTED_MODELS = ("elo", "logistic")
@@ -80,41 +86,49 @@ def run_backtest_for_league(db: Session, league_slug: str, model_name: str = "el
     if model_name not in SUPPORTED_MODELS:
         raise ValueError(f"Unknown model_name '{model_name}' -- supported: {', '.join(SUPPORTED_MODELS)}")
 
-    predictions = _gather_predictions(db, league.id, model_name)
+    if model_name == "logistic":
+        holdout = evaluate_logistic_holdout(db, league_slug)
+        games_evaluated = holdout["games_evaluated"]
+        accuracy = holdout["accuracy"]
+        brier_score = holdout["brier_score"]
+        log_loss = holdout["log_loss"]
+    else:
+        predictions = _gather_predictions(db, league.id, model_name)
 
-    if not predictions:
-        raise ValueError(
-            f"No completed games with '{model_name}' predictions found for '{league_slug}'. "
-            f"Run the feature and {model_name} compute/train endpoints first."
-        )
+        if not predictions:
+            raise ValueError(
+                f"No completed games with '{model_name}' predictions found for '{league_slug}'. "
+                f"Run the feature and {model_name} compute/train endpoints first."
+            )
 
-    decisive = [(p, a) for p, a in predictions if a != 0.5]
-    correct = sum(1 for p, a in decisive if (p > 0.5) == (a == 1.0))
-    accuracy = correct / len(decisive) if decisive else None
+        decisive = [(p, a) for p, a in predictions if a != 0.5]
+        correct = sum(1 for p, a in decisive if (p > 0.5) == (a == 1.0))
+        accuracy = correct / len(decisive) if decisive else None
 
-    brier_score = sum((p - a) ** 2 for p, a in predictions) / len(predictions)
+        brier_score = sum((p - a) ** 2 for p, a in predictions) / len(predictions)
 
-    total_log_loss = 0.0
-    for p, a in predictions:
-        p_clamped = min(max(p, EPSILON), 1 - EPSILON)
-        total_log_loss += -(a * math.log(p_clamped) + (1 - a) * math.log(1 - p_clamped))
-    log_loss = total_log_loss / len(predictions)
+        total_log_loss = 0.0
+        for p, a in predictions:
+            p_clamped = min(max(p, EPSILON), 1 - EPSILON)
+            total_log_loss += -(a * math.log(p_clamped) + (1 - a) * math.log(1 - p_clamped))
+        log_loss = total_log_loss / len(predictions)
+        games_evaluated = len(predictions)
 
     run = BacktestRun(
         league_id=league.id,
         model_name=model_name,
-        games_evaluated=len(predictions),
+        games_evaluated=games_evaluated,
         accuracy=accuracy,
         brier_score=brier_score,
         log_loss=log_loss,
     )
     db.add(run)
-    _log(db, "backtest_pipeline", f"backtest_{league_slug}_{model_name}", "success", len(predictions))
+    _log(db, "backtest_pipeline", f"backtest_{league_slug}_{model_name}", "success", games_evaluated)
     db.commit()
 
     return {
         "model_name": model_name,
-        "games_evaluated": len(predictions),
+        "games_evaluated": games_evaluated,
         "accuracy": round(accuracy, 4) if accuracy is not None else None,
         "brier_score": round(brier_score, 5),
         "log_loss": round(log_loss, 5),
