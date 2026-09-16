@@ -17,6 +17,7 @@
     --orange: #F7941D;
     --pink: #F0466E;
     --purple: #A855F7;
+    --negative: #E1546A;
   }
   * { box-sizing: border-box; }
   body {
@@ -65,6 +66,41 @@
   }
   .status-banner.error { border-color: #E1546A; color: #E1546A; }
   .hidden { display: none !important; }
+
+  .account-btn {
+    width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--hairline);
+    background: var(--panel); color: var(--text-muted); display: flex; align-items: center;
+    justify-content: center; cursor: pointer; font-size: 13px; font-weight: 600;
+  }
+  .account-btn:hover { border-color: var(--pink); color: var(--text); }
+  .account-btn.logged-in { background: linear-gradient(135deg, var(--orange), var(--pink) 55%, var(--purple)); color: #fff; border: none; }
+  .account-wrap { position: relative; }
+  .account-dropdown {
+    position: absolute; top: 40px; right: 0; background: var(--panel); border: 1px solid var(--hairline);
+    border-radius: 8px; padding: 0.5rem; min-width: 170px; z-index: 50;
+  }
+  .account-dropdown .email-label { font-size: 12px; color: var(--text-muted); padding: 6px 8px; border-bottom: 1px solid var(--hairline); margin-bottom: 4px; word-break: break-all; }
+  .account-dropdown button { width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 8px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .account-dropdown button:hover { background: var(--panel-raised); }
+
+  .auth-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex;
+    align-items: center; justify-content: center; z-index: 100; padding: 1rem;
+  }
+  .auth-modal {
+    background: var(--panel); border: 1px solid var(--hairline); border-radius: 12px;
+    padding: 1.75rem; width: 100%; max-width: 340px; position: relative;
+  }
+  .auth-close { position: absolute; top: 12px; right: 14px; background: none; border: none; color: var(--text-faint); font-size: 20px; cursor: pointer; line-height: 1; }
+  .auth-close:hover { color: var(--text); }
+  .auth-tabs { display: flex; gap: 4px; margin-bottom: 1.25rem; background: var(--bg); border-radius: 8px; padding: 3px; }
+  .auth-tab { flex: 1; background: transparent; border: none; color: var(--text-muted); padding: 8px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .auth-tab.active { background: var(--hairline); color: var(--text); }
+  .auth-field { width: 100%; background: var(--bg); border: 1px solid var(--hairline); color: var(--text); border-radius: 8px; padding: 10px 12px; font-size: 14px; margin-bottom: 0.7rem; box-sizing: border-box; }
+  .auth-field:focus { outline: none; border-color: var(--pink); }
+  .auth-error { font-size: 12px; color: var(--negative); background: rgba(225,84,106,0.1); border: 1px solid rgba(225,84,106,0.25); border-radius: 6px; padding: 8px 10px; margin-bottom: 0.7rem; }
+  .auth-submit { width: 100%; background: linear-gradient(90deg, var(--orange), var(--pink) 60%, var(--purple)); color: #1A0B0A; font-weight: 600; border: none; border-radius: 8px; padding: 11px; font-size: 14px; cursor: pointer; }
+  .auth-submit:disabled { opacity: 0.6; cursor: default; }
 
   .signal-feed { margin: 1.25rem 1.5rem 0; }
   .signal-feed-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; }
@@ -168,6 +204,32 @@
         <button class="league-tab" data-league="mlb">MLB</button>
         <button class="league-tab" data-league="nba">NBA</button>
       </div>
+      <div class="account-wrap">
+        <button class="account-btn" id="account-btn" title="Account">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M4 20c0-4 4-7 8-7s8 3 8 7"/>
+          </svg>
+        </button>
+        <div class="account-dropdown hidden" id="account-dropdown">
+          <div class="email-label" id="dropdown-email"></div>
+          <button id="logout-btn">Log out</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-overlay hidden" id="auth-overlay">
+    <div class="auth-modal">
+      <button class="auth-close" id="auth-close">&times;</button>
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-mode="login" id="tab-login">Sign In</button>
+        <button class="auth-tab" data-mode="signup" id="tab-signup">Sign Up</button>
+      </div>
+      <div class="auth-error hidden" id="auth-error"></div>
+      <input type="email" class="auth-field" id="auth-email" placeholder="Email" autocomplete="email">
+      <input type="password" class="auth-field" id="auth-password" placeholder="Password" autocomplete="current-password">
+      <button class="auth-submit" id="auth-submit">Sign In</button>
     </div>
   </div>
 
@@ -433,6 +495,134 @@
 
   loadAlerts();
   loadGames();
+
+  var AUTH_TOKEN_KEY = 'vantage_token';
+  var accountBtn = document.getElementById('account-btn');
+  var accountDropdown = document.getElementById('account-dropdown');
+  var dropdownEmail = document.getElementById('dropdown-email');
+  var logoutBtn = document.getElementById('logout-btn');
+  var authOverlay = document.getElementById('auth-overlay');
+  var authCloseBtn = document.getElementById('auth-close');
+  var authEmailInput = document.getElementById('auth-email');
+  var authPasswordInput = document.getElementById('auth-password');
+  var authSubmitBtn = document.getElementById('auth-submit');
+  var authErrorEl = document.getElementById('auth-error');
+  var tabLogin = document.getElementById('tab-login');
+  var tabSignup = document.getElementById('tab-signup');
+  var authMode = 'login';
+
+  var PERSON_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-7 8-7s8 3 8 7"/></svg>';
+
+  function setAuthMode(mode) {
+    authMode = mode;
+    tabLogin.classList.toggle('active', mode === 'login');
+    tabSignup.classList.toggle('active', mode === 'signup');
+    authSubmitBtn.textContent = mode === 'login' ? 'Sign In' : 'Sign Up';
+    authErrorEl.classList.add('hidden');
+  }
+  tabLogin.addEventListener('click', function () { setAuthMode('login'); });
+  tabSignup.addEventListener('click', function () { setAuthMode('signup'); });
+
+  function openAuthModal() {
+    authOverlay.classList.remove('hidden');
+    authEmailInput.value = '';
+    authPasswordInput.value = '';
+    authErrorEl.classList.add('hidden');
+    setAuthMode('login');
+  }
+  function closeAuthModal() { authOverlay.classList.add('hidden'); }
+  authCloseBtn.addEventListener('click', closeAuthModal);
+  authOverlay.addEventListener('click', function (e) {
+    if (e.target === authOverlay) closeAuthModal();
+  });
+
+  function showLoggedInUI(email) {
+    accountBtn.classList.add('logged-in');
+    accountBtn.innerHTML = email.charAt(0).toUpperCase();
+    dropdownEmail.textContent = email;
+  }
+  function showLoggedOutUI() {
+    accountBtn.classList.remove('logged-in');
+    accountBtn.innerHTML = PERSON_ICON;
+    accountDropdown.classList.add('hidden');
+  }
+
+  accountBtn.addEventListener('click', function () {
+    var token = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (token) {
+      accountDropdown.classList.toggle('hidden');
+    } else {
+      openAuthModal();
+    }
+  });
+
+  logoutBtn.addEventListener('click', function () {
+    var token = localStorage.getItem(AUTH_TOKEN_KEY);
+    fetch(API_BASE + '/auth/logout', { method: 'POST', headers: { 'Authorization': token } })
+      .catch(function () {})
+      .then(function () {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        showLoggedOutUI();
+      });
+  });
+
+  authSubmitBtn.addEventListener('click', function () {
+    var email = authEmailInput.value.trim();
+    var password = authPasswordInput.value;
+    if (!email || !password) {
+      authErrorEl.textContent = 'Email and password are required.';
+      authErrorEl.classList.remove('hidden');
+      return;
+    }
+    authSubmitBtn.disabled = true;
+    authSubmitBtn.textContent = authMode === 'login' ? 'Signing in...' : 'Signing up...';
+    var endpoint = authMode === 'login' ? '/auth/login' : '/auth/signup';
+
+    fetch(API_BASE + endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, password: password })
+    })
+      .then(function (resp) {
+        return resp.json().then(function (data) { return { ok: resp.ok, data: data }; });
+      })
+      .then(function (result) {
+        authSubmitBtn.disabled = false;
+        authSubmitBtn.textContent = authMode === 'login' ? 'Sign In' : 'Sign Up';
+        if (!result.ok) {
+          authErrorEl.textContent = result.data.detail || 'Something went wrong.';
+          authErrorEl.classList.remove('hidden');
+          return;
+        }
+        localStorage.setItem(AUTH_TOKEN_KEY, result.data.token);
+        showLoggedInUI(result.data.email);
+        closeAuthModal();
+      })
+      .catch(function () {
+        authSubmitBtn.disabled = false;
+        authSubmitBtn.textContent = authMode === 'login' ? 'Sign In' : 'Sign Up';
+        authErrorEl.textContent = 'Could not reach the server.';
+        authErrorEl.classList.remove('hidden');
+      });
+  });
+
+  (function checkExistingSession() {
+    var token = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (!token) {
+      showLoggedOutUI();
+      return;
+    }
+    fetch(API_BASE + '/auth/me', { headers: { 'Authorization': token } })
+      .then(function (resp) {
+        if (!resp.ok) throw new Error('invalid session');
+        return resp.json();
+      })
+      .then(function (data) { showLoggedInUI(data.email); })
+      .catch(function () {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        showLoggedOutUI();
+      });
+  })();
 </script>
 </body>
 </html>
