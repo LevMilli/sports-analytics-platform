@@ -20,7 +20,7 @@ forward for the next game in the loop.
 from typing import Dict
 from sqlalchemy.orm import Session
 
-from app.db.models.core import Game, Team, League, TeamGameFeatures, IngestionLog
+from app.db.models.core import Game, Team, League, TeamGameFeatures, IngestionLog, PredictionSnapshot
 
 STARTING_RATING = 1500.0
 K_FACTOR = 20.0
@@ -79,6 +79,8 @@ def compute_elo_for_league(db: Session, league_slug: str) -> dict:
 
         _upsert_elo(db, game.id, home_id, home_elo, expected_home)
         _upsert_elo(db, game.id, away_id, away_elo, expected_away)
+        db.add(PredictionSnapshot(game_id=game.id, team_id=home_id, model_name="elo", win_probability=expected_home))
+        db.add(PredictionSnapshot(game_id=game.id, team_id=away_id, model_name="elo", win_probability=expected_away))
         rows_written += 2
 
         is_complete = game.status == "final" and game.home_score is not None and game.away_score is not None

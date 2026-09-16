@@ -219,6 +219,17 @@ class Session_(Base):
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
 
+class PredictionSnapshot(Base):
+    __tablename__ = "prediction_snapshots"
+
+    id = Column(Integer, primary_key=True)
+    game_id = Column(Integer, ForeignKey("games.id"), nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    model_name = Column(String(50), nullable=False)
+    win_probability = Column(Numeric(5, 4), nullable=False)
+    recorded_at = Column(DateTime(timezone=True), default=utcnow)
+
+
 class IngestionLog(Base):
     __tablename__ = "ingestion_logs"
 

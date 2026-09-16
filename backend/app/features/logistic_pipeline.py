@@ -21,7 +21,7 @@ completed games are on file.
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
-from app.db.models.core import Game, League, TeamGameFeatures, Prediction, IngestionLog
+from app.db.models.core import Game, League, TeamGameFeatures, Prediction, IngestionLog, PredictionSnapshot
 from app.features.logistic_model import SimpleLogisticRegression
 
 MIN_TRAINING_SAMPLES = 10
@@ -128,6 +128,7 @@ def train_logistic_for_league(db: Session, league_slug: str) -> dict:
                 db.add(Prediction(
                     game_id=game.id, team_id=team_id, model_name="logistic", win_probability=prob,
                 ))
+            db.add(PredictionSnapshot(game_id=game.id, team_id=team_id, model_name="logistic", win_probability=prob))
             predictions_written += 1
 
     _log(db, "logistic_pipeline", f"train_{league_slug}", "success", len(X_train))

@@ -34,7 +34,7 @@ from app.features.logistic_pipeline import train_logistic_for_league
 from app.features.alerts_pipeline import generate_alerts_for_league
 from app.features.games_list import list_games_for_league
 from app.features.auth_pipeline import sign_up, log_in, log_out, get_current_user, update_profile, deactivate_account
-from app.db.models.core import Game, League, Team, Alert
+from app.db.models.core import Game, League, Team, Alert, PredictionSnapshot
 
 app = FastAPI(title="Sports Data Analysis Platform", version="0.1.0-mvp")
 
@@ -237,6 +237,32 @@ def explain_game_endpoint(game_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail=str(e))
 
     return result
+
+
+@app.get("/games/{game_id}/history")
+def game_history_endpoint(game_id: int, db: Session = Depends(get_db)):
+    game = db.query(Game).filter_by(id=game_id).first()
+    if not game:
+        raise HTTPException(status_code=404, detail=f"No game found with id {game_id}")
+
+    snapshots = (
+        db.query(PredictionSnapshot)
+        .filter_by(game_id=game_id, team_id=game.home_team_id)
+        .order_by(PredictionSnapshot.recorded_at.asc())
+        .all()
+    )
+
+    return {
+        "game_id": game_id,
+        "points": [
+            {
+                "model_name": s.model_name,
+                "win_probability": float(s.win_probability),
+                "recorded_at": s.recorded_at.isoformat() if s.recorded_at else None,
+            }
+            for s in snapshots
+        ],
+    }
 
 
 @app.post("/features/nfl/logistic/train")
