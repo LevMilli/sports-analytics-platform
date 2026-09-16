@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Vantage — Account & Security</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #140B10;
+    --panel: #1E1319;
+    --panel-raised: #241722;
+    --hairline: #33202B;
+    --text: #F3EDEF;
+    --text-muted: #A6919B;
+    --text-faint: #6B5560;
+    --orange: #F7941D;
+    --pink: #F0466E;
+    --purple: #A855F7;
+    --negative: #E1546A;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 640px; margin: 0 auto; padding: 0 0 4rem; }
+  .gradient-bar { height: 4px; background: linear-gradient(90deg, var(--orange), var(--pink) 55%, var(--purple)); }
+
+  .nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--hairline);
+  }
+  .brand-row { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand-mark {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: linear-gradient(135deg, var(--orange), var(--pink) 55%, var(--purple));
+    display: flex; align-items: center; justify-content: center; flex: none;
+  }
+  .brand-name { font-size: 15px; font-weight: 600; color: var(--text); }
+  .nav-cta { font-size: 13px; color: var(--text-muted); text-decoration: none; }
+  .nav-cta:hover { color: var(--pink); }
+
+  .hidden { display: none !important; }
+  .status-banner {
+    margin: 1.25rem 1.5rem 0; padding: 0.9rem 1.1rem; border-radius: 8px;
+    font-size: 13px; border: 1px solid var(--hairline); background: var(--panel); color: var(--text-muted);
+  }
+  .status-banner.error { border-color: var(--negative); color: var(--negative); }
+
+  .heading { padding: 2rem 1.5rem 1.5rem; }
+  .heading h1 { font-family: 'Bebas Neue', sans-serif; font-size: 34px; margin: 0; letter-spacing: 0.01em; }
+
+  .card { margin: 0 1.5rem 1.5rem; background: var(--panel); border: 1px solid var(--hairline); border-radius: 12px; overflow: hidden; }
+  .field-row { display: flex; align-items: center; justify-content: space-between; padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--hairline); }
+  .field-row:last-child { border-bottom: none; }
+  .field-label { font-size: 12px; color: var(--text-faint); margin-bottom: 4px; }
+  .field-value { font-size: 15px; color: var(--text); }
+  .field-value.empty { color: var(--text-faint); font-style: italic; }
+  .edit-btn {
+    width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--hairline);
+    background: transparent; color: var(--text-muted); cursor: pointer; flex: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .edit-btn:hover { border-color: var(--pink); color: var(--text); }
+
+  .edit-form { display: flex; gap: 8px; align-items: center; width: 100%; }
+  .edit-form input {
+    flex: 1; background: var(--bg); border: 1px solid var(--hairline); color: var(--text);
+    border-radius: 6px; padding: 8px 10px; font-size: 14px;
+  }
+  .edit-form input:focus { outline: none; border-color: var(--pink); }
+  .edit-form button {
+    border: none; border-radius: 6px; padding: 8px 12px; font-size: 13px; cursor: pointer; font-weight: 600;
+  }
+  .save-btn { background: linear-gradient(90deg, var(--orange), var(--pink) 60%, var(--purple)); color: #1A0B0A; }
+  .cancel-btn { background: var(--panel-raised); color: var(--text-muted); }
+
+  .field-error { font-size: 12px; color: var(--negative); margin-top: 6px; }
+
+  .danger-card { margin: 0 1.5rem; background: var(--panel); border: 1px solid var(--hairline); border-radius: 12px; padding: 1.1rem 1.25rem; }
+  .danger-btn {
+    display: flex; align-items: center; gap: 10px; background: none; border: none; color: var(--negative);
+    font-size: 14px; font-weight: 600; cursor: pointer; padding: 0;
+  }
+  .danger-btn:hover { text-decoration: underline; }
+
+  .confirm-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex;
+    align-items: center; justify-content: center; z-index: 100; padding: 1rem;
+  }
+  .confirm-modal {
+    background: var(--panel); border: 1px solid var(--hairline); border-radius: 12px;
+    padding: 1.75rem; width: 100%; max-width: 360px;
+  }
+  .confirm-modal h3 { margin: 0 0 0.75rem; font-size: 18px; }
+  .confirm-modal p { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin: 0 0 1.5rem; }
+  .confirm-actions { display: flex; gap: 10px; }
+  .confirm-actions button {
+    flex: 1; border: none; border-radius: 8px; padding: 11px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .confirm-deactivate { background: var(--negative); color: #fff; }
+  .confirm-cancel { background: var(--panel-raised); color: var(--text); }
+
+  .signed-out-card { margin: 2rem 1.5rem; text-align: center; }
+  .signed-out-card p { color: var(--text-muted); font-size: 14px; }
+  .signed-out-card a {
+    display: inline-block; margin-top: 1rem;
+    background: linear-gradient(90deg, var(--orange), var(--pink) 60%, var(--purple));
+    color: #1A0B0A; font-weight: 600; font-size: 14px; text-decoration: none;
+    padding: 10px 22px; border-radius: 100px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="gradient-bar"></div>
+
+  <div class="nav">
+    <a href="landing_live.html" class="brand-row">
+      <div class="brand-mark">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+          <path d="M3 17 L9 11 L13 15 L21 6" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M15 6 L21 6 L21 12" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="brand-name">Vantage</span>
+    </a>
+    <a href="dashboard_live.html" class="nav-cta">Dashboard</a>
+  </div>
+
+  <div id="status" class="status-banner hidden"></div>
+
+  <div id="signed-out" class="signed-out-card hidden">
+    <p>You need to sign in to view your account.</p>
+    <a href="landing_live.html">Go sign in</a>
+  </div>
+
+  <div id="account-content" class="hidden">
+    <div class="heading"><h1>Account & Security</h1></div>
+
+    <div class="card">
+      <div class="field-row" id="row-full_name">
+        <div>
+          <div class="field-label">Full name</div>
+          <div class="field-value" id="value-full_name">—</div>
+        </div>
+        <button class="edit-btn" data-field="full_name" title="Edit">✎</button>
+      </div>
+      <div class="field-row" id="row-email">
+        <div>
+          <div class="field-label">Email</div>
+          <div class="field-value" id="value-email">—</div>
+        </div>
+        <button class="edit-btn" data-field="email" title="Edit">✎</button>
+      </div>
+      <div class="field-row" id="row-phone">
+        <div>
+          <div class="field-label">Phone number</div>
+          <div class="field-value" id="value-phone">—</div>
+        </div>
+        <button class="edit-btn" data-field="phone" title="Edit">✎</button>
+      </div>
+    </div>
+
+    <div class="danger-card">
+      <button class="danger-btn" id="deactivate-btn">
+        <span>🚫</span> Deactivate your account
+      </button>
+    </div>
+  </div>
+
+  <div class="confirm-overlay hidden" id="confirm-overlay">
+    <div class="confirm-modal">
+      <h3>Deactivate your account?</h3>
+      <p>This immediately logs you out everywhere and blocks future sign-ins. Your email stays reserved, but the account itself is deactivated. This can't be undone from here.</p>
+      <div class="confirm-actions">
+        <button class="confirm-cancel" id="confirm-cancel-btn">Cancel</button>
+        <button class="confirm-deactivate" id="confirm-deactivate-btn">Deactivate</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+<script>
+  var API_BASE = 'https://sports-analytics-platform-ida8.onrender.com';
+  var AUTH_TOKEN_KEY = 'vantage_token';
+
+  var statusEl = document.getElementById('status');
+  var signedOutEl = document.getElementById('signed-out');
+  var contentEl = document.getElementById('account-content');
+
+  function showStatus(message, isError) {
+    statusEl.textContent = message;
+    statusEl.className = 'status-banner' + (isError ? ' error' : '');
+    statusEl.classList.remove('hidden');
+  }
+  function hideStatus() { statusEl.classList.add('hidden'); }
+
+  var currentUser = {};
+
+  function renderField(field) {
+    var valueEl = document.getElementById('value-' + field);
+    var value = currentUser[field];
+    if (value) {
+      valueEl.textContent = value;
+      valueEl.classList.remove('empty');
+    } else {
+      valueEl.textContent = 'Not set';
+      valueEl.classList.add('empty');
+    }
+  }
+
+  function renderAllFields() {
+    renderField('full_name');
+    renderField('email');
+    renderField('phone');
+  }
+
+  function startEdit(field) {
+    var row = document.getElementById('row-' + field);
+    var currentValue = currentUser[field] || '';
+    row.innerHTML =
+      '<div class="edit-form">' +
+        '<input type="text" id="edit-input-' + field + '" value="' + currentValue.replace(/"/g, '&quot;') + '">' +
+        '<button class="save-btn" id="save-btn-' + field + '">Save</button>' +
+        '<button class="cancel-btn" id="cancel-btn-' + field + '">Cancel</button>' +
+      '</div>';
+
+    document.getElementById('cancel-btn-' + field).addEventListener('click', function () {
+      renderRow(field);
+    });
+    document.getElementById('save-btn-' + field).addEventListener('click', function () {
+      saveField(field);
+    });
+  }
+
+  function renderRow(field) {
+    var row = document.getElementById('row-' + field);
+    var label = field === 'full_name' ? 'Full name' : field === 'email' ? 'Email' : 'Phone number';
+    row.innerHTML =
+      '<div>' +
+        '<div class="field-label">' + label + '</div>' +
+        '<div class="field-value" id="value-' + field + '">—</div>' +
+      '</div>' +
+      '<button class="edit-btn" data-field="' + field + '" title="Edit">\u270E</button>';
+    renderField(field);
+    row.querySelector('.edit-btn').addEventListener('click', function () { startEdit(field); });
+  }
+
+  function saveField(field) {
+    var input = document.getElementById('edit-input-' + field);
+    var newValue = input.value.trim();
+    var token = localStorage.getItem(AUTH_TOKEN_KEY);
+
+    var body = {};
+    body[field] = newValue;
+
+    fetch(API_BASE + '/auth/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': token },
+      body: JSON.stringify(body)
+    })
+      .then(function (resp) {
+        return resp.json().then(function (data) { return { ok: resp.ok, data: data }; });
+      })
+      .then(function (result) {
+        if (!result.ok) {
+          var row = document.getElementById('row-' + field);
+          var existingError = row.querySelector('.field-error');
+          if (!existingError) {
+            var errDiv = document.createElement('div');
+            errDiv.className = 'field-error';
+            row.querySelector('.edit-form').parentNode.appendChild(errDiv);
+          }
+          row.querySelector('.field-error').textContent = result.data.detail || 'Could not save.';
+          return;
+        }
+        currentUser.full_name = result.data.full_name;
+        currentUser.email = result.data.email;
+        currentUser.phone = result.data.phone;
+        renderRow(field);
+      })
+      .catch(function () {
+        showStatus('Could not reach the server.', true);
+      });
+  }
+
+  document.querySelectorAll('.edit-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      startEdit(btn.getAttribute('data-field'));
+    });
+  });
+
+  var confirmOverlay = document.getElementById('confirm-overlay');
+  document.getElementById('deactivate-btn').addEventListener('click', function () {
+    confirmOverlay.classList.remove('hidden');
+  });
+  document.getElementById('confirm-cancel-btn').addEventListener('click', function () {
+    confirmOverlay.classList.add('hidden');
+  });
+  document.getElementById('confirm-deactivate-btn').addEventListener('click', function () {
+    var token = localStorage.getItem(AUTH_TOKEN_KEY);
+    fetch(API_BASE + '/auth/deactivate', { method: 'POST', headers: { 'Authorization': token } })
+      .then(function (resp) { return resp.json().then(function (data) { return { ok: resp.ok, data: data }; }); })
+      .then(function (result) {
+        confirmOverlay.classList.add('hidden');
+        if (!result.ok) {
+          showStatus(result.data.detail || 'Could not deactivate account.', true);
+          return;
+        }
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        window.location.href = 'landing_live.html';
+      })
+      .catch(function () {
+        confirmOverlay.classList.add('hidden');
+        showStatus('Could not reach the server.', true);
+      });
+  });
+
+  (function loadAccount() {
+    var token = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (!token) {
+      signedOutEl.classList.remove('hidden');
+      return;
+    }
+    fetch(API_BASE + '/auth/me', { headers: { 'Authorization': token } })
+      .then(function (resp) {
+        if (!resp.ok) throw new Error('invalid session');
+        return resp.json();
+      })
+      .then(function (data) {
+        currentUser = data;
+        renderAllFields();
+        contentEl.classList.remove('hidden');
+      })
+      .catch(function () {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        signedOutEl.classList.remove('hidden');
+      });
+  })();
+</script>
+</body>
+</html>
