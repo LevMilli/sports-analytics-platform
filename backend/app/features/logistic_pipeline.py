@@ -67,7 +67,12 @@ def train_logistic_for_league(db: Session, league_slug: str) -> dict:
     if not league:
         raise ValueError(f"No league found with slug '{league_slug}'")
 
-    all_games = db.query(Game).filter_by(league_id=league.id).all()
+    all_games = (
+        db.query(Game)
+        .filter_by(league_id=league.id)
+        .order_by(Game.game_date.asc())
+        .all()
+    )
     features_lookup = {}
     for row in (
         db.query(TeamGameFeatures)
@@ -77,8 +82,12 @@ def train_logistic_for_league(db: Session, league_slug: str) -> dict:
     ):
         features_lookup[(row.game_id, row.team_id)] = row
 
-    X_train: List[List[float]] = []
-    y_train: List[float] = []
+    # Gather every completed, fully-featured game IN CHRONOLOGICAL ORDER --
+    # required for an honest train/holdout split. A random split would let
+    # the model be evaluated on games chronologically earlier than some of
+    # its own training games, which isn't how this model is actually used
+    # (always predicting forward from what's already happened).
+    examples: List[tuple] = []
     for game in all_games:
         outcome = _actual_home_win(game)
         if outcome is None:
@@ -90,18 +99,43 @@ def train_logistic_for_league(db: Session, league_slug: str) -> dict:
         vec = _build_feature_vector(home_f, away_f)
         if vec is None:
             continue
-        X_train.append(vec)
-        y_train.append(outcome)
+        examples.append((vec, outcome))
 
-    if len(X_train) < MIN_TRAINING_SAMPLES:
+    if len(examples) < MIN_TRAINING_SAMPLES:
         raise ValueError(
-            f"Only {len(X_train)} usable completed games with full features on file -- "
+            f"Only {len(examples)} usable completed games with full features on file -- "
             f"need at least {MIN_TRAINING_SAMPLES} to train a logistic regression model "
             f"honestly. Run more game syncs and the feature/elo compute endpoints first."
         )
 
+    # Chronological holdout split: train on the earlier ~80% of games,
+    # evaluate genuine out-of-sample accuracy on the later ~20% the model
+    # never saw during training. Without this, "accuracy" would just
+    # measure how well the model memorized games it already knows the
+    # answer to -- not real predictive skill on new games.
+    split_idx = int(len(examples) * 0.8)
+    train_examples = examples[:split_idx]
+    holdout_examples = examples[split_idx:]
+
+    holdout_accuracy = None
+    holdout_games = len(holdout_examples)
+    if len(train_examples) >= MIN_TRAINING_SAMPLES and len(holdout_examples) >= 5:
+        holdout_model = SimpleLogisticRegression()
+        holdout_model.fit(
+            [vec for vec, _ in train_examples],
+            [outcome for _, outcome in train_examples],
+        )
+        holdout_preds = holdout_model.predict_proba([vec for vec, _ in holdout_examples])
+        decisive = [(p, a) for p, (_, a) in zip(holdout_preds, holdout_examples) if a != 0.5]
+        correct = sum(1 for p, a in decisive if (p > 0.5) == (a == 1.0))
+        holdout_accuracy = correct / len(decisive) if decisive else None
+
+    # For the model that actually generates live predictions, train on
+    # EVERY completed game on file -- more real data makes a better
+    # production model. The holdout figure above is what tells you how
+    # trustworthy that production model's predictions really are.
     model = SimpleLogisticRegression()
-    model.fit(X_train, y_train)
+    model.fit([vec for vec, _ in examples], [outcome for _, outcome in examples])
 
     predictions_written = 0
     for game in all_games:
@@ -131,12 +165,14 @@ def train_logistic_for_league(db: Session, league_slug: str) -> dict:
             db.add(PredictionSnapshot(game_id=game.id, team_id=team_id, model_name="logistic", win_probability=prob))
             predictions_written += 1
 
-    _log(db, "logistic_pipeline", f"train_{league_slug}", "success", len(X_train))
+    _log(db, "logistic_pipeline", f"train_{league_slug}", "success", len(examples))
     db.commit()
 
     return {
-        "training_samples": len(X_train),
+        "training_samples": len(examples),
         "predictions_written": predictions_written,
+        "holdout_accuracy": round(holdout_accuracy, 4) if holdout_accuracy is not None else None,
+        "holdout_games": holdout_games,
         "learned_weights": {
             "elo_gap": round(model.weights[0], 4),
             "rolling_win_pct_gap": round(model.weights[1], 4),
