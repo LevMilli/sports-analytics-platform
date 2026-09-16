@@ -82,6 +82,8 @@
   .account-dropdown .email-label { font-size: 12px; color: var(--text-muted); padding: 6px 8px; border-bottom: 1px solid var(--hairline); margin-bottom: 4px; word-break: break-all; }
   .account-dropdown button { width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 8px; border-radius: 6px; font-size: 13px; cursor: pointer; }
   .account-dropdown button:hover { background: var(--panel-raised); }
+  .account-dropdown a { display: block; padding: 8px; border-radius: 6px; color: var(--text); text-decoration: none; font-size: 13px; }
+  .account-dropdown a:hover { background: var(--panel-raised); }
 
   .auth-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex;
@@ -213,6 +215,7 @@
         </button>
         <div class="account-dropdown hidden" id="account-dropdown">
           <div class="email-label" id="dropdown-email"></div>
+          <a href="account_live.html">Account & Security</a>
           <button id="logout-btn">Log out</button>
         </div>
       </div>
