@@ -129,6 +129,16 @@
   .sidebar-item:hover { background: var(--panel-raised); }
   .sidebar-empty { font-size: 12px; color: var(--text-faint); font-style: italic; padding: 4px; }
 
+  .mini-game-row { display: flex; align-items: center; gap: 8px; padding: 7px 4px; text-decoration: none; color: inherit; border-radius: 6px; font-size: 12px; }
+  .mini-game-row:hover { background: var(--panel-raised); }
+  .mini-game-teams { flex: 1; color: var(--text-muted); }
+  .mini-game-teams b { color: var(--text); font-weight: 500; }
+  .mini-game-pct { color: var(--pink); font-weight: 600; }
+
+  .coverage-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 4px; font-size: 12px; }
+  .coverage-league { color: var(--text-muted); }
+  .coverage-count { color: var(--text); font-weight: 600; }
+
   .account-btn {
     width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--hairline);
     background: var(--panel); color: var(--text-muted); display: flex; align-items: center;
@@ -311,6 +321,16 @@
       <div class="sidebar-card">
         <div class="sidebar-title"><span class="signal-pulse"></span>Active Signals <span class="sidebar-count" id="sidebar-count"></span></div>
         <div id="sidebar-alerts-list"><div class="sidebar-empty">Loading...</div></div>
+      </div>
+
+      <div class="sidebar-card">
+        <div class="sidebar-title">This Week's Games</div>
+        <div id="sidebar-games-list"><div class="sidebar-empty">Loading...</div></div>
+      </div>
+
+      <div class="sidebar-card">
+        <div class="sidebar-title">Coverage</div>
+        <div id="sidebar-coverage-list"><div class="sidebar-empty">Loading...</div></div>
       </div>
     </aside>
   </div>
@@ -598,6 +618,69 @@
   });
 
   loadSidebarAlerts();
+
+  function loadSidebarGames() {
+    var listEl = document.getElementById('sidebar-games-list');
+    fetch(API_BASE + '/games/nfl?limit=5')
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) {
+        if (!data.games || data.games.length === 0) {
+          listEl.innerHTML = '<div class="sidebar-empty">No games on file.</div>';
+          return;
+        }
+        listEl.innerHTML = '';
+        data.games.forEach(function (g) {
+          var row = document.createElement('a');
+          row.className = 'mini-game-row';
+          row.href = 'game_detail_live.html?game=' + g.game_id;
+
+          var teams = document.createElement('span');
+          teams.className = 'mini-game-teams';
+          teams.innerHTML = abbrFor(g.away_team) + ' @ <b>' + abbrFor(g.home_team) + '</b>';
+
+          var pctSpan = document.createElement('span');
+          pctSpan.className = 'mini-game-pct';
+          pctSpan.textContent = g.elo_win_prob_home !== null ? Math.round(g.elo_win_prob_home * 100) + '%' : '—';
+
+          row.appendChild(teams);
+          row.appendChild(pctSpan);
+          listEl.appendChild(row);
+        });
+      })
+      .catch(function () {
+        listEl.innerHTML = '<div class="sidebar-empty">Could not load games.</div>';
+      });
+  }
+  loadSidebarGames();
+
+  function loadSidebarCoverage() {
+    var listEl = document.getElementById('sidebar-coverage-list');
+    var leagues = ['nfl', 'mlb', 'nba'];
+    var requests = leagues.map(function (lg) {
+      return fetch(API_BASE + '/games/' + lg + '?limit=500')
+        .then(function (resp) { return resp.json(); })
+        .then(function (data) { return { league: lg, count: data.count }; })
+        .catch(function () { return { league: lg, count: null }; });
+    });
+
+    Promise.all(requests).then(function (results) {
+      listEl.innerHTML = '';
+      results.forEach(function (r) {
+        var row = document.createElement('div');
+        row.className = 'coverage-row';
+        var label = document.createElement('span');
+        label.className = 'coverage-league';
+        label.textContent = r.league.toUpperCase();
+        var count = document.createElement('span');
+        count.className = 'coverage-count';
+        count.textContent = r.count !== null ? r.count + ' games' : '—';
+        row.appendChild(label);
+        row.appendChild(count);
+        listEl.appendChild(row);
+      });
+    });
+  }
+  loadSidebarCoverage();
 </script>
 </body>
 </html>
