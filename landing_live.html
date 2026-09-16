@@ -27,7 +27,7 @@
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
   }
-  .page { max-width: 640px; margin: 0 auto; padding: 0 0 4rem; position: relative; }
+  .page { max-width: 720px; margin: 0 auto; padding: 0 0 4rem; position: relative; }
 
   .glow {
     position: absolute;
@@ -38,7 +38,7 @@
   }
 
   .nav {
-    position: relative; z-index: 1;
+    position: relative; z-index: 20;
     display: flex; align-items: center; justify-content: space-between;
     padding: 1.5rem 1.5rem 0;
   }
@@ -79,6 +79,25 @@
   .preview-track { width: 100px; height: 5px; border-radius: 3px; background: rgba(0,0,0,0.35); overflow: hidden; }
   .preview-fill { height: 100%; background: var(--pink); }
   .preview-pct { font-size: 13px; color: var(--text-muted); width: 34px; text-align: right; }
+
+  .stats-section { position: relative; z-index: 1; margin: 0 1.5rem 3.5rem; }
+  .stats-label { font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 1rem; text-align: center; }
+  .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+  .stat-card { background: var(--panel); border: 1px solid var(--hairline); border-radius: 10px; padding: 1rem 0.75rem; text-align: center; }
+  .stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 30px; background: linear-gradient(90deg, var(--orange), var(--pink) 65%, var(--purple)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  .chart-card { background: var(--panel); border: 1px solid var(--hairline); border-radius: 10px; padding: 1.25rem; }
+  .chart-title { font-size: 13px; color: var(--text-muted); margin-bottom: 1rem; }
+  .chart-row { display: flex; align-items: center; gap: 10px; margin-bottom: 0.75rem; }
+  .chart-row:last-child { margin-bottom: 0; }
+  .chart-row-label { font-size: 12px; color: var(--text-muted); width: 70px; flex: none; }
+  .chart-track { flex: 1; height: 18px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+  .chart-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+  .chart-fill.elo { background: var(--pink); }
+  .chart-fill.logistic { background: var(--purple); }
+  .chart-row-pct { font-size: 13px; font-weight: 600; width: 44px; text-align: right; flex: none; }
+  .chart-note { font-size: 11px; color: var(--text-faint); margin-top: 0.9rem; line-height: 1.5; }
 
   .features { padding: 0 1.5rem; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; text-align: center; }
   .feature h3 { font-size: 14px; font-weight: 600; margin: 0 0 0.4rem; color: var(--text); }
@@ -222,6 +241,39 @@
     <a href="#" class="preview-row hidden" id="preview-row"></a>
   </div>
 
+  <div class="stats-section">
+    <div class="stats-label">The Platform, In Numbers</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-num" id="stat-games">—</div>
+        <div class="stat-label">Games tracked</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-signals">—</div>
+        <div class="stat-label">Active signals</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="stat-best-model">—</div>
+        <div class="stat-label">Best model accuracy</div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Model accuracy, graded against real outcomes</div>
+      <div class="chart-row">
+        <span class="chart-row-label">Elo</span>
+        <div class="chart-track"><div class="chart-fill elo" id="bar-elo" style="width:0%"></div></div>
+        <span class="chart-row-pct" id="pct-elo">—</span>
+      </div>
+      <div class="chart-row">
+        <span class="chart-row-label">Logistic</span>
+        <div class="chart-track"><div class="chart-fill logistic" id="bar-logistic" style="width:0%"></div></div>
+        <span class="chart-row-pct" id="pct-logistic">—</span>
+      </div>
+      <div class="chart-note" id="chart-note">Loading live backtest results...</div>
+    </div>
+  </div>
+
   <div class="features">
     <div class="feature">
       <h3>Model vs market</h3>
@@ -306,6 +358,48 @@
     .catch(function (err) {
       statusEl.textContent = 'Could not load a live preview (is the backend running?).';
     });
+
+  fetch(API_BASE + '/games/nfl?limit=500')
+    .then(function (resp) { return resp.json(); })
+    .then(function (data) {
+      document.getElementById('stat-games').textContent = data.count;
+    })
+    .catch(function () {
+      document.getElementById('stat-games').textContent = '—';
+    });
+
+  function loadAccuracyChart() {
+    var eloReq = fetch(API_BASE + '/backtest/nfl/run?model=elo', { method: 'POST' }).then(function (r) { return r.json(); });
+    var logisticReq = fetch(API_BASE + '/backtest/nfl/run?model=logistic', { method: 'POST' }).then(function (r) { return r.json(); });
+
+    Promise.all([eloReq, logisticReq])
+      .then(function (results) {
+        var elo = results[0];
+        var logistic = results[1];
+
+        if (elo.accuracy == null || logistic.accuracy == null) {
+          document.getElementById('chart-note').textContent = 'Not enough completed games yet to grade both models.';
+          return;
+        }
+
+        var eloPct = Math.round(elo.accuracy * 100);
+        var logisticPct = Math.round(logistic.accuracy * 100);
+        var bestPct = Math.max(eloPct, logisticPct);
+        var bestModel = logisticPct >= eloPct ? 'Logistic' : 'Elo';
+
+        document.getElementById('bar-elo').style.width = eloPct + '%';
+        document.getElementById('bar-logistic').style.width = logisticPct + '%';
+        document.getElementById('pct-elo').textContent = eloPct + '%';
+        document.getElementById('pct-logistic').textContent = logisticPct + '%';
+        document.getElementById('stat-best-model').textContent = bestPct + '%';
+        document.getElementById('chart-note').textContent =
+          bestModel + ' currently leads, graded on ' + elo.games_evaluated + ' real completed games.';
+      })
+      .catch(function () {
+        document.getElementById('chart-note').textContent = 'Could not load live backtest results.';
+      });
+  }
+  loadAccuracyChart();
 
   var AUTH_TOKEN_KEY = 'vantage_token';
   var accountBtn = document.getElementById('account-btn');
@@ -443,6 +537,9 @@
   var ALERT_ICONS = { model_disagreement: '\u26A1', low_confidence: '\uD83D\uDD0D' };
 
   function renderBell(alerts) {
+    var statSignalsEl = document.getElementById('stat-signals');
+    if (statSignalsEl) statSignalsEl.textContent = alerts ? alerts.length : '0';
+
     if (!alerts || alerts.length === 0) {
       bellBadge.classList.add('hidden');
       bellList.innerHTML = '<div class="bell-empty">No active signals right now.</div>';
@@ -484,5 +581,4 @@
   loadBellAlerts();
 </script>
 </body>
-</html>ø
-≈ø
+</html>
