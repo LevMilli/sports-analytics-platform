@@ -33,7 +33,7 @@ from app.features.explain_pipeline import explain_game
 from app.features.logistic_pipeline import train_logistic_for_league
 from app.features.alerts_pipeline import generate_alerts_for_league
 from app.features.games_list import list_games_for_league
-from app.features.auth_pipeline import sign_up, log_in, log_out, get_current_user, update_profile, deactivate_account
+from app.features.auth_pipeline import sign_up, log_in, log_out, get_current_user, update_profile, deactivate_account, list_sessions, revoke_session
 from app.db.models.core import Game, League, Team, Alert, PredictionSnapshot
 
 app = FastAPI(title="Sports Data Analysis Platform", version="0.1.0-mvp")
@@ -388,9 +388,9 @@ class ProfileUpdateRequest(BaseModel):
 
 
 @app.post("/auth/signup")
-def signup_endpoint(body: AuthRequest, db: Session = Depends(get_db)):
+def signup_endpoint(body: AuthRequest, user_agent: str = Header(None), db: Session = Depends(get_db)):
     try:
-        user, token = sign_up(db, body.email, body.password, full_name=body.full_name)
+        user, token = sign_up(db, body.email, body.password, full_name=body.full_name, user_agent=user_agent)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -398,9 +398,9 @@ def signup_endpoint(body: AuthRequest, db: Session = Depends(get_db)):
 
 
 @app.post("/auth/login")
-def login_endpoint(body: AuthRequest, db: Session = Depends(get_db)):
+def login_endpoint(body: AuthRequest, user_agent: str = Header(None), db: Session = Depends(get_db)):
     try:
-        user, token = log_in(db, body.email, body.password)
+        user, token = log_in(db, body.email, body.password, user_agent=user_agent)
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
 
@@ -444,3 +444,33 @@ def me_endpoint(authorization: str = Header(None), db: Session = Depends(get_db)
     if not user:
         raise HTTPException(status_code=401, detail="Not logged in or session expired.")
     return {"email": user.email, "full_name": user.full_name, "phone": user.phone}
+
+
+@app.get("/auth/sessions")
+def list_sessions_endpoint(authorization: str = Header(None), db: Session = Depends(get_db)):
+    try:
+        user, sessions, current_id = list_sessions(db, authorization)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    return {
+        "sessions": [
+            {
+                "id": s.id,
+                "user_agent": s.user_agent,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "is_current": s.id == current_id,
+            }
+            for s in sessions
+        ]
+    }
+
+
+@app.delete("/auth/sessions/{session_id}")
+def revoke_session_endpoint(session_id: int, authorization: str = Header(None), db: Session = Depends(get_db)):
+    try:
+        revoke_session(db, authorization, session_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return {"status": "revoked"}

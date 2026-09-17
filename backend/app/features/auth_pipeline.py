@@ -7,12 +7,17 @@ Django uses by default. Each password gets its own random salt.
 
 Sessions are opaque random tokens, stored in their own table with an
 expiry -- not JWTs. That makes logout instantaneous.
+
+Session rows optionally carry the real User-Agent header sent at
+login/signup time, so a user can see (and individually revoke) which
+real devices/browsers are currently signed in -- no invented location
+data, since we have no real geolocation infrastructure to back that.
 """
 
 import hashlib
 import secrets
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 from sqlalchemy.orm import Session as DbSession
 
@@ -36,14 +41,16 @@ def _verify_password(password: str, salt: str, expected_hash: str) -> bool:
     return secrets.compare_digest(actual_hash, expected_hash)
 
 
-def _create_session(db: DbSession, user_id: int) -> str:
+def _create_session(db: DbSession, user_id: int, user_agent: Optional[str] = None) -> str:
     token = secrets.token_urlsafe(32)
     expires = datetime.now(timezone.utc) + timedelta(days=SESSION_LIFETIME_DAYS)
-    db.add(Session_(user_id=user_id, token=token, expires_at=expires))
+    trimmed_agent = user_agent[:255] if user_agent else None
+    db.add(Session_(user_id=user_id, token=token, user_agent=trimmed_agent, expires_at=expires))
     return token
 
 
-def sign_up(db: DbSession, email: str, password: str, full_name: Optional[str] = None) -> Tuple[User, str]:
+def sign_up(db: DbSession, email: str, password: str, full_name: Optional[str] = None,
+            user_agent: Optional[str] = None) -> Tuple[User, str]:
     email = email.strip().lower()
     if not email or "@" not in email:
         raise ValueError("A valid email address is required.")
@@ -60,12 +67,12 @@ def sign_up(db: DbSession, email: str, password: str, full_name: Optional[str] =
     db.add(user)
     db.flush()
 
-    token = _create_session(db, user.id)
+    token = _create_session(db, user.id, user_agent=user_agent)
     db.commit()
     return user, token
 
 
-def log_in(db: DbSession, email: str, password: str) -> Tuple[User, str]:
+def log_in(db: DbSession, email: str, password: str, user_agent: Optional[str] = None) -> Tuple[User, str]:
     email = email.strip().lower()
     user = db.query(User).filter_by(email=email).first()
     if not user or not _verify_password(password, user.password_salt, user.password_hash):
@@ -73,7 +80,7 @@ def log_in(db: DbSession, email: str, password: str) -> Tuple[User, str]:
     if not user.is_active:
         raise ValueError("This account has been deactivated.")
 
-    token = _create_session(db, user.id)
+    token = _create_session(db, user.id, user_agent=user_agent)
     db.commit()
     return user, token
 
@@ -121,4 +128,47 @@ def update_profile(db: DbSession, user: User, full_name: Optional[str] = None,
 def deactivate_account(db: DbSession, user: User) -> None:
     user.is_active = False
     db.query(Session_).filter_by(user_id=user.id).delete()
+    db.commit()
+
+
+def list_sessions(db: DbSession, token: str) -> Tuple[User, List[Session_], int]:
+    """
+    Returns (user, sessions, current_session_id) for the account that
+    owns `token` -- every real active session on file for them,
+    ordered newest first, plus which one is the request's own.
+    """
+    user = get_current_user(db, token)
+    if not user:
+        raise ValueError("Not logged in or session expired.")
+
+    now = datetime.now(timezone.utc)
+    sessions = (
+        db.query(Session_)
+        .filter_by(user_id=user.id)
+        .order_by(Session_.created_at.desc())
+        .all()
+    )
+    active_sessions = [s for s in sessions if s.expires_at.replace(tzinfo=timezone.utc) >= now]
+
+    current = db.query(Session_).filter_by(token=token).first()
+    current_id = current.id if current else None
+
+    return user, active_sessions, current_id
+
+
+def revoke_session(db: DbSession, token: str, session_id: int) -> None:
+    """
+    Revokes one specific session by id -- but only if it genuinely
+    belongs to the account making the request. Without that ownership
+    check, a logged-in user could log anyone else out by guessing IDs.
+    """
+    user = get_current_user(db, token)
+    if not user:
+        raise ValueError("Not logged in or session expired.")
+
+    session = db.query(Session_).filter_by(id=session_id, user_id=user.id).first()
+    if not session:
+        raise ValueError("Session not found.")
+
+    db.delete(session)
     db.commit()

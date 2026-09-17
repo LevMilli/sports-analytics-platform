@@ -215,6 +215,7 @@ class Session_(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     token = Column(String(64), unique=True, nullable=False)
+    user_agent = Column(String(255))
     created_at = Column(DateTime(timezone=True), default=utcnow)
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
