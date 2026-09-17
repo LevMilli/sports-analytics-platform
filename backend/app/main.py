@@ -35,7 +35,7 @@ from app.features.alerts_pipeline import generate_alerts_for_league
 from app.features.games_list import list_games_for_league
 from app.features.auth_pipeline import sign_up, log_in, log_out, get_current_user, update_profile, deactivate_account, list_sessions, revoke_session
 from app.features.favorites_pipeline import add_favorite, remove_favorite, list_favorites, search_teams
-from app.db.models.core import Game, League, Team, Alert, PredictionSnapshot
+from app.db.models.core import Game, League, Team, Alert, PredictionSnapshot, TeamGameFeatures
 
 app = FastAPI(title="Sports Data Analysis Platform", version="0.1.0-mvp")
 
@@ -515,3 +515,26 @@ def list_favorites_endpoint(authorization: str = Header(None), db: Session = Dep
 def search_teams_endpoint(q: str, league: str = None, db: Session = Depends(get_db)):
     results = search_teams(db, q, league_slug=league)
     return {"teams": results}
+
+
+@app.get("/rankings/{league_slug}")
+def rankings_endpoint(league_slug: str, db: Session = Depends(get_db)):
+    league = db.query(League).filter_by(slug=league_slug).first()
+    if not league:
+        return {"rankings": []}
+
+    teams = db.query(Team).filter_by(league_id=league.id).all()
+    rankings = []
+    for team in teams:
+        latest = (
+            db.query(TeamGameFeatures)
+            .join(Game, Game.id == TeamGameFeatures.game_id)
+            .filter(TeamGameFeatures.team_id == team.id, TeamGameFeatures.elo_rating.isnot(None))
+            .order_by(Game.game_date.desc())
+            .first()
+        )
+        if latest:
+            rankings.append({"team_id": team.id, "team_name": team.name, "elo_rating": float(latest.elo_rating)})
+
+    rankings.sort(key=lambda r: r["elo_rating"], reverse=True)
+    return {"rankings": rankings}
