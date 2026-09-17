@@ -34,6 +34,7 @@ from app.features.logistic_pipeline import train_logistic_for_league
 from app.features.alerts_pipeline import generate_alerts_for_league
 from app.features.games_list import list_games_for_league
 from app.features.auth_pipeline import sign_up, log_in, log_out, get_current_user, update_profile, deactivate_account, list_sessions, revoke_session
+from app.features.favorites_pipeline import add_favorite, remove_favorite, list_favorites, search_teams
 from app.db.models.core import Game, League, Team, Alert, PredictionSnapshot
 
 app = FastAPI(title="Sports Data Analysis Platform", version="0.1.0-mvp")
@@ -474,3 +475,43 @@ def revoke_session_endpoint(session_id: int, authorization: str = Header(None), 
         raise HTTPException(status_code=404, detail=str(e))
 
     return {"status": "revoked"}
+
+
+class FavoriteRequest(BaseModel):
+    team_id: int
+
+
+@app.post("/favorites/teams")
+def add_favorite_endpoint(body: FavoriteRequest, authorization: str = Header(None), db: Session = Depends(get_db)):
+    try:
+        result = add_favorite(db, authorization, body.team_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return result
+
+
+@app.delete("/favorites/teams/{team_id}")
+def remove_favorite_endpoint(team_id: int, authorization: str = Header(None), db: Session = Depends(get_db)):
+    try:
+        remove_favorite(db, authorization, team_id)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    return {"status": "removed"}
+
+
+@app.get("/favorites/teams")
+def list_favorites_endpoint(authorization: str = Header(None), db: Session = Depends(get_db)):
+    try:
+        favorites = list_favorites(db, authorization)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    return {"favorites": favorites}
+
+
+@app.get("/teams/search")
+def search_teams_endpoint(q: str, league: str = None, db: Session = Depends(get_db)):
+    results = search_teams(db, q, league_slug=league)
+    return {"teams": results}

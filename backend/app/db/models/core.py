@@ -231,6 +231,16 @@ class PredictionSnapshot(Base):
     recorded_at = Column(DateTime(timezone=True), default=utcnow)
 
 
+class FavoriteTeam(Base):
+    __tablename__ = "favorite_teams"
+    __table_args__ = (UniqueConstraint("user_id", "team_id"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), default=utcnow)
+
+
 class IngestionLog(Base):
     __tablename__ = "ingestion_logs"
 
