@@ -292,17 +292,22 @@ def list_nfl_alerts(db: Session = Depends(get_db)):
         return {"alerts": []}
 
     alerts = db.query(Alert).filter_by(league_id=league.id).order_by(Alert.created_at.desc()).all()
-    return {
-        "alerts": [
-            {
-                "game_id": a.game_id,
-                "alert_type": a.alert_type,
-                "severity": a.severity,
-                "message": a.message,
-            }
-            for a in alerts
-        ]
-    }
+
+    result = []
+    for a in alerts:
+        game = db.query(Game).filter_by(id=a.game_id).first()
+        home_team = db.query(Team).filter_by(id=game.home_team_id).first() if game else None
+        away_team = db.query(Team).filter_by(id=game.away_team_id).first() if game else None
+        result.append({
+            "game_id": a.game_id,
+            "alert_type": a.alert_type,
+            "severity": a.severity,
+            "message": a.message,
+            "home_team": home_team.name if home_team else None,
+            "away_team": away_team.name if away_team else None,
+        })
+
+    return {"alerts": result}
 
 
 @app.get("/games/{league_slug}")
