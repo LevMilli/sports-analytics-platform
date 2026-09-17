@@ -128,6 +128,12 @@
     border-left: 3px solid var(--pink); background: var(--bg); margin-bottom: 8px; font-size: 12px; line-height: 1.5;
   }
   .sidebar-item:hover { background: var(--panel-raised); }
+  .sidebar-item-header { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; }
+  .sidebar-item-matchup { font-size: 12px; color: var(--text); font-weight: 500; }
+  .sidebar-item-badge {
+    width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 8px; font-weight: 700; color: #fff; flex: none;
+  }
   .sidebar-empty { font-size: 12px; color: var(--text-faint); font-style: italic; padding: 4px; }
 
   .mini-game-row { display: flex; align-items: center; gap: 8px; padding: 7px 4px; text-decoration: none; color: inherit; border-radius: 6px; font-size: 12px; }
@@ -230,7 +236,6 @@
         </button>
         <div class="account-dropdown hidden" id="account-dropdown">
           <div class="email-label" id="dropdown-email"></div>
-          <a href="account_live.html">Account & Security</a>
           <button id="logout-btn">Log out</button>
         </div>
       </div>
@@ -604,6 +609,25 @@
       var item = document.createElement('a');
       item.className = 'sidebar-item';
       item.href = 'game_detail_live.html?game=' + a.game_id;
+
+      if (a.home_team && a.away_team) {
+        var header = document.createElement('div');
+        header.className = 'sidebar-item-header';
+
+        var badge = document.createElement('span');
+        badge.className = 'sidebar-item-badge';
+        badge.style.background = badgeColorFor(a.home_team);
+        badge.textContent = abbrFor(a.home_team);
+
+        var matchup = document.createElement('span');
+        matchup.className = 'sidebar-item-matchup';
+        matchup.textContent = a.away_team + ' @ ' + a.home_team;
+
+        header.appendChild(badge);
+        header.appendChild(matchup);
+        item.appendChild(header);
+      }
+
       var iconSpan = document.createElement('span');
       iconSpan.style.marginRight = '8px';
       iconSpan.textContent = ALERT_ICONS[a.alert_type] || '\u2022';
