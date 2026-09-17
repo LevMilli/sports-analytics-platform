@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <title>Vantage — Account & Security</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23F7941D%22/%3E%3Cstop%20offset%3D%2255%25%22%20stop-color%3D%22%23F0466E%22/%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23A855F7%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22url%28%23g%29%22/%3E%3Cpath%20d%3D%22M3%2017%20L9%2011%20L13%2015%20L21%206%22%20stroke%3D%22white%22%20stroke-width%3D%222.5%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3Cpath%20d%3D%22M15%206%20L21%206%20L21%2012%22%20stroke%3D%22white%22%20stroke-width%3D%222.5%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -83,6 +82,34 @@
   .field-error { font-size: 12px; color: var(--negative); margin-top: 6px; }
 
   .danger-card { margin: 0 1.5rem; background: var(--panel); border: 1px solid var(--hairline); border-radius: 12px; padding: 1.1rem 1.25rem; }
+
+  .heading-sub { padding: 0 1.5rem; margin: 0 0 0.75rem; }
+  .heading-sub h2 { font-size: 15px; margin: 0; font-weight: 600; }
+
+  .fav-search-row { display: flex; gap: 8px; padding: 1.1rem 1.25rem 0.9rem; }
+  .fav-search-row input { flex: 1; background: var(--bg); border: 1px solid var(--hairline); color: var(--text); border-radius: 6px; padding: 8px 10px; font-size: 14px; }
+  .fav-search-row input:focus { outline: none; border-color: var(--pink); }
+  .fav-search-row button { background: var(--panel-raised); border: 1px solid var(--hairline); color: var(--text); border-radius: 6px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  .fav-search-row button:hover { border-color: var(--pink); }
+
+  .team-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 1.25rem; border-bottom: 1px solid var(--hairline); font-size: 14px; }
+  .team-row:last-child { border-bottom: none; }
+  .team-row-name { display: flex; align-items: center; gap: 8px; }
+  .team-row-league { font-size: 10px; color: var(--text-faint); text-transform: uppercase; border: 1px solid var(--hairline); border-radius: 4px; padding: 1px 5px; }
+  .team-row button { background: none; border: 1px solid var(--hairline); color: var(--text-muted); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+  .team-row button:hover { border-color: var(--pink); color: var(--text); }
+  .team-row button.remove-btn { color: var(--negative); }
+  .team-row button.remove-btn:hover { border-color: var(--negative); }
+  .empty-note { font-size: 13px; color: var(--text-faint); font-style: italic; padding: 9px 1.25rem; }
+
+  .session-row { padding: 10px 1.25rem; border-bottom: 1px solid var(--hairline); }
+  .session-row:last-child { border-bottom: none; }
+  .session-row-top { display: flex; justify-content: space-between; align-items: center; }
+  .session-agent { font-size: 13px; color: var(--text); }
+  .session-current-badge { font-size: 10px; color: #4FAE7A; background: rgba(79,174,122,0.12); padding: 2px 7px; border-radius: 4px; margin-left: 6px; }
+  .session-meta { font-size: 12px; color: var(--text-faint); margin-top: 3px; }
+  .session-row button { background: none; border: 1px solid var(--hairline); color: var(--negative); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+  .session-row button:hover { border-color: var(--negative); }
   .danger-btn {
     display: flex; align-items: center; gap: 10px; background: none; border: none; color: var(--negative);
     font-size: 14px; font-weight: 600; cursor: pointer; padding: 0;
@@ -165,6 +192,21 @@
         </div>
         <button class="edit-btn" data-field="phone" title="Edit">✎</button>
       </div>
+    </div>
+
+    <div class="heading-sub"><h2>Favorite Teams</h2></div>
+    <div class="card">
+      <div class="fav-search-row">
+        <input type="text" id="team-search-input" placeholder="Search teams (e.g. Chiefs)">
+        <button id="team-search-btn">Search</button>
+      </div>
+      <div id="team-search-results"></div>
+      <div id="favorites-list"><div class="empty-note">Loading...</div></div>
+    </div>
+
+    <div class="heading-sub"><h2>Active Sessions</h2></div>
+    <div class="card">
+      <div id="sessions-list"><div class="empty-note">Loading...</div></div>
     </div>
 
     <div class="danger-card">
@@ -343,6 +385,176 @@
         signedOutEl.classList.remove('hidden');
       });
   })();
+
+  function shortenUserAgent(ua) {
+    if (!ua) return 'Unknown device';
+    if (ua.indexOf('Chrome') !== -1 && ua.indexOf('Macintosh') !== -1) return 'Chrome on Mac';
+    if (ua.indexOf('Chrome') !== -1 && ua.indexOf('Windows') !== -1) return 'Chrome on Windows';
+    if (ua.indexOf('Chrome') !== -1 && (ua.indexOf('Android') !== -1)) return 'Chrome on Android';
+    if (ua.indexOf('Safari') !== -1 && ua.indexOf('iPhone') !== -1) return 'Safari on iPhone';
+    if (ua.indexOf('Safari') !== -1 && ua.indexOf('Macintosh') !== -1) return 'Safari on Mac';
+    if (ua.indexOf('Firefox') !== -1) return 'Firefox';
+    return ua.length > 40 ? ua.substring(0, 40) + '...' : ua;
+  }
+
+  function formatSessionDate(isoString) {
+    var d = new Date(isoString);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) +
+      ' at ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+
+  function loadSessions() {
+    var token = localStorage.getItem(AUTH_TOKEN_KEY);
+    var listEl = document.getElementById('sessions-list');
+    fetch(API_BASE + '/auth/sessions', { headers: { 'Authorization': token } })
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) {
+        if (!data.sessions || data.sessions.length === 0) {
+          listEl.innerHTML = '<div class="empty-note">No active sessions.</div>';
+          return;
+        }
+        listEl.innerHTML = '';
+        data.sessions.forEach(function (s) {
+          var row = document.createElement('div');
+          row.className = 'session-row';
+
+          var top = document.createElement('div');
+          top.className = 'session-row-top';
+
+          var agentWrap = document.createElement('div');
+          var agentSpan = document.createElement('span');
+          agentSpan.className = 'session-agent';
+          agentSpan.textContent = shortenUserAgent(s.user_agent);
+          agentWrap.appendChild(agentSpan);
+          if (s.is_current) {
+            var badge = document.createElement('span');
+            badge.className = 'session-current-badge';
+            badge.textContent = 'Current session';
+            agentWrap.appendChild(badge);
+          }
+          top.appendChild(agentWrap);
+
+          if (!s.is_current) {
+            var revokeBtn = document.createElement('button');
+            revokeBtn.textContent = 'Revoke';
+            revokeBtn.addEventListener('click', function () {
+              fetch(API_BASE + '/auth/sessions/' + s.id, { method: 'DELETE', headers: { 'Authorization': token } })
+                .then(function () { loadSessions(); });
+            });
+            top.appendChild(revokeBtn);
+          }
+
+          row.appendChild(top);
+
+          var meta = document.createElement('div');
+          meta.className = 'session-meta';
+          meta.textContent = 'Signed in ' + formatSessionDate(s.created_at);
+          row.appendChild(meta);
+
+          listEl.appendChild(row);
+        });
+      })
+      .catch(function () {
+        listEl.innerHTML = '<div class="empty-note">Could not load sessions.</div>';
+      });
+  }
+  loadSessions();
+
+  function loadFavorites() {
+    var token = localStorage.getItem(AUTH_TOKEN_KEY);
+    var listEl = document.getElementById('favorites-list');
+    fetch(API_BASE + '/favorites/teams', { headers: { 'Authorization': token } })
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) {
+        if (!data.favorites || data.favorites.length === 0) {
+          listEl.innerHTML = '<div class="empty-note">No favorite teams yet -- search above to add one.</div>';
+          return;
+        }
+        listEl.innerHTML = '';
+        data.favorites.forEach(function (f) {
+          var row = document.createElement('div');
+          row.className = 'team-row';
+
+          var nameWrap = document.createElement('span');
+          nameWrap.className = 'team-row-name';
+          var nameSpan = document.createElement('span');
+          nameSpan.textContent = f.team_name;
+          var leagueSpan = document.createElement('span');
+          leagueSpan.className = 'team-row-league';
+          leagueSpan.textContent = f.league;
+          nameWrap.appendChild(nameSpan);
+          nameWrap.appendChild(leagueSpan);
+          row.appendChild(nameWrap);
+
+          var removeBtn = document.createElement('button');
+          removeBtn.className = 'remove-btn';
+          removeBtn.textContent = 'Remove';
+          removeBtn.addEventListener('click', function () {
+            fetch(API_BASE + '/favorites/teams/' + f.team_id, { method: 'DELETE', headers: { 'Authorization': token } })
+              .then(function () { loadFavorites(); });
+          });
+          row.appendChild(removeBtn);
+
+          listEl.appendChild(row);
+        });
+      })
+      .catch(function () {
+        listEl.innerHTML = '<div class="empty-note">Could not load favorites.</div>';
+      });
+  }
+  loadFavorites();
+
+  document.getElementById('team-search-btn').addEventListener('click', function () {
+    var query = document.getElementById('team-search-input').value.trim();
+    var resultsEl = document.getElementById('team-search-results');
+    if (!query) { resultsEl.innerHTML = ''; return; }
+
+    var token = localStorage.getItem(AUTH_TOKEN_KEY);
+    fetch(API_BASE + '/teams/search?q=' + encodeURIComponent(query))
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) {
+        if (!data.teams || data.teams.length === 0) {
+          resultsEl.innerHTML = '<div class="empty-note">No teams found.</div>';
+          return;
+        }
+        resultsEl.innerHTML = '';
+        data.teams.forEach(function (t) {
+          var row = document.createElement('div');
+          row.className = 'team-row';
+
+          var nameWrap = document.createElement('span');
+          nameWrap.className = 'team-row-name';
+          var nameSpan = document.createElement('span');
+          nameSpan.textContent = t.team_name;
+          var leagueSpan = document.createElement('span');
+          leagueSpan.className = 'team-row-league';
+          leagueSpan.textContent = t.league;
+          nameWrap.appendChild(nameSpan);
+          nameWrap.appendChild(leagueSpan);
+          row.appendChild(nameWrap);
+
+          var addBtn = document.createElement('button');
+          addBtn.textContent = 'Add';
+          addBtn.addEventListener('click', function () {
+            fetch(API_BASE + '/favorites/teams', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': token },
+              body: JSON.stringify({ team_id: t.team_id })
+            }).then(function () {
+              resultsEl.innerHTML = '';
+              document.getElementById('team-search-input').value = '';
+              loadFavorites();
+            });
+          });
+          row.appendChild(addBtn);
+
+          resultsEl.appendChild(row);
+        });
+      });
+  });
+  document.getElementById('team-search-input').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') document.getElementById('team-search-btn').click();
+  });
 </script>
 </body>
 </html>
