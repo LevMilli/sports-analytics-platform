@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <title>Vantage — See the edge, not the noise</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23F7941D%22/%3E%3Cstop%20offset%3D%2255%25%22%20stop-color%3D%22%23F0466E%22/%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23A855F7%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%2224%22%20height%3D%2224%22%20rx%3D%226%22%20fill%3D%22url%28%23g%29%22/%3E%3Cpath%20d%3D%22M3%2017%20L9%2011%20L13%2015%20L21%206%22%20stroke%3D%22white%22%20stroke-width%3D%222.5%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3Cpath%20d%3D%22M15%206%20L21%206%20L21%2012%22%20stroke%3D%22white%22%20stroke-width%3D%222.5%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -76,7 +75,8 @@
 
   .preview { position: relative; z-index: 1; margin: 0 0 3rem; padding-top: 1.5rem; border-top: 1px solid var(--hairline); }
   .preview-status { font-size: 12px; color: var(--text-faint); margin-bottom: 0.75rem; text-align: center; }
-  .preview-row { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
+  .preview-row { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; padding: 8px 0; border-bottom: 1px solid var(--hairline); }
+  .preview-row:last-child { border-bottom: none; }
   .badge-sm { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; flex: none; color: #fff; }
   .preview-teams { flex: 1; font-size: 14px; }
   .preview-teams .name { color: var(--text-muted); }
@@ -169,8 +169,6 @@
   .account-dropdown .email-label { font-size: 12px; color: var(--text-muted); padding: 6px 8px; border-bottom: 1px solid var(--hairline); margin-bottom: 4px; word-break: break-all; }
   .account-dropdown button { width: 100%; text-align: left; background: none; border: none; color: var(--text); padding: 8px; border-radius: 6px; font-size: 13px; cursor: pointer; }
   .account-dropdown button:hover { background: var(--panel-raised); }
-  .account-dropdown a { display: block; padding: 8px; border-radius: 6px; color: var(--text); text-decoration: none; font-size: 13px; }
-  .account-dropdown a:hover { background: var(--panel-raised); }
 
   .auth-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex;
@@ -212,7 +210,7 @@
       </div>
       <span class="brand-name">Vantage</span>
     </div>
-    <div style="display:flex; align-items:center; gap:1.5rem;">
+    <div style="display:flex; align-items:center; gap:1rem;">
       <a href="dashboard_live.html" class="nav-cta">Today's games</a>
       <div class="bell-wrap">
         <button class="bell-btn" id="bell-btn" title="Jump to active signals">
@@ -264,8 +262,8 @@
       </div>
 
       <div class="preview">
-        <div class="preview-status" id="preview-status">Loading a live game...</div>
-        <a href="#" class="preview-row hidden" id="preview-row"></a>
+        <div class="preview-status" id="preview-status">Loading live games...</div>
+        <div id="preview-list"></div>
       </div>
 
       <div class="stats-section">
@@ -355,9 +353,9 @@
   }
 
   var statusEl = document.getElementById('preview-status');
-  var rowEl = document.getElementById('preview-row');
+  var listEl = document.getElementById('preview-list');
 
-  fetch(API_BASE + '/games/nfl?limit=1')
+  fetch(API_BASE + '/games/nfl?limit=4')
     .then(function (resp) {
       if (!resp.ok) throw new Error('Server returned ' + resp.status);
       return resp.json();
@@ -367,39 +365,42 @@
         statusEl.textContent = 'No games on file yet.';
         return;
       }
-      var g = data.games[0];
-      statusEl.textContent = 'A real prediction, pulled live right now:';
+      statusEl.textContent = 'Real predictions, pulled live right now:';
 
-      rowEl.href = 'game_detail_live.html?game=' + g.game_id;
-      rowEl.classList.remove('hidden');
+      data.games.forEach(function (g) {
+        var rowEl = document.createElement('a');
+        rowEl.className = 'preview-row';
+        rowEl.href = 'game_detail_live.html?game=' + g.game_id;
 
-      var homeAbbr = abbrFor(g.home_team);
-      var pct = g.elo_win_prob_home !== null ? Math.round(g.elo_win_prob_home * 100) : null;
+        var homeAbbr = abbrFor(g.home_team);
+        var pct = g.elo_win_prob_home !== null ? Math.round(g.elo_win_prob_home * 100) : null;
 
-      var badge = document.createElement('span');
-      badge.className = 'badge-sm';
-      badge.style.background = badgeColorFor(g.home_team);
-      badge.textContent = homeAbbr;
+        var badge = document.createElement('span');
+        badge.className = 'badge-sm';
+        badge.style.background = badgeColorFor(g.home_team);
+        badge.textContent = homeAbbr;
 
-      var teams = document.createElement('div');
-      teams.className = 'preview-teams';
-      teams.innerHTML = g.home_team + ' <span class="preview-vs">@</span> <span class="name">' + g.away_team + '</span>';
+        var teams = document.createElement('div');
+        teams.className = 'preview-teams';
+        teams.innerHTML = g.home_team + ' <span class="preview-vs">@</span> <span class="name">' + g.away_team + '</span>';
 
-      var track = document.createElement('div');
-      track.className = 'preview-track';
-      var fill = document.createElement('div');
-      fill.className = 'preview-fill';
-      fill.style.width = (pct !== null ? pct : 0) + '%';
-      track.appendChild(fill);
+        var track = document.createElement('div');
+        track.className = 'preview-track';
+        var fill = document.createElement('div');
+        fill.className = 'preview-fill';
+        fill.style.width = (pct !== null ? pct : 0) + '%';
+        track.appendChild(fill);
 
-      var pctEl = document.createElement('span');
-      pctEl.className = 'preview-pct';
-      pctEl.textContent = pct !== null ? pct + '%' : '—';
+        var pctEl = document.createElement('span');
+        pctEl.className = 'preview-pct';
+        pctEl.textContent = pct !== null ? pct + '%' : '—';
 
-      rowEl.appendChild(badge);
-      rowEl.appendChild(teams);
-      rowEl.appendChild(track);
-      rowEl.appendChild(pctEl);
+        rowEl.appendChild(badge);
+        rowEl.appendChild(teams);
+        rowEl.appendChild(track);
+        rowEl.appendChild(pctEl);
+        listEl.appendChild(rowEl);
+      });
     })
     .catch(function (err) {
       statusEl.textContent = 'Could not load a live preview (is the backend running?).';
