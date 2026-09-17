@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Vantage — Power Rankings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #140B10;
+    --panel: #1E1319;
+    --panel-raised: #241722;
+    --hairline: #33202B;
+    --text: #F3EDEF;
+    --text-muted: #A6919B;
+    --text-faint: #6B5560;
+    --orange: #F7941D;
+    --pink: #F0466E;
+    --purple: #A855F7;
+    --negative: #E1546A;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 760px; margin: 0 auto; padding: 0 0 4rem; }
+  .gradient-bar { height: 4px; background: linear-gradient(90deg, var(--orange), var(--pink) 55%, var(--purple)); }
+
+  .nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--hairline);
+  }
+  .brand-row { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand-mark {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: linear-gradient(135deg, var(--orange), var(--pink) 55%, var(--purple));
+    display: flex; align-items: center; justify-content: center; flex: none;
+  }
+  .brand-name { font-size: 15px; font-weight: 600; color: var(--text); }
+  .nav-cta { font-size: 13px; color: var(--text-muted); text-decoration: none; }
+  .nav-cta:hover { color: var(--pink); }
+  .hidden { display: none !important; }
+
+  .heading { padding: 2rem 1.5rem 0.5rem; }
+  .heading h1 { font-family: 'Bebas Neue', sans-serif; font-size: 34px; margin: 0; letter-spacing: 0.01em; }
+  .heading p { font-size: 13px; color: var(--text-muted); margin: 0.4rem 0 0; }
+
+  .status-banner {
+    margin: 1.25rem 1.5rem 0; padding: 0.9rem 1.1rem; border-radius: 8px;
+    font-size: 13px; border: 1px solid var(--hairline); background: var(--panel); color: var(--text-muted);
+  }
+
+  .rankings-list { margin: 1.5rem 1.5rem 0; }
+  .rank-row { display: grid; grid-template-columns: 28px 160px 1fr 60px; align-items: center; gap: 12px; padding: 10px 0; }
+  .rank-num { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--text-faint); text-align: right; }
+  .rank-num.top3 { color: var(--pink); }
+  .rank-team { font-size: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rank-track { height: 20px; background: var(--panel); border-radius: 4px; overflow: hidden; }
+  .rank-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--orange), var(--pink) 60%, var(--purple)); transition: width 0.5s ease; }
+  .rank-value { font-size: 13px; color: var(--text-muted); text-align: right; font-variant-numeric: tabular-nums; }
+
+  @media (max-width: 560px) {
+    .rank-row { grid-template-columns: 22px 100px 1fr 50px; gap: 8px; }
+    .rank-team { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="gradient-bar"></div>
+
+  <div class="nav">
+    <a href="landing_live.html" class="brand-row">
+      <div class="brand-mark">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+          <path d="M3 17 L9 11 L13 15 L21 6" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M15 6 L21 6 L21 12" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="brand-name">Vantage</span>
+    </a>
+    <a href="dashboard_live.html" class="nav-cta">Dashboard</a>
+  </div>
+
+  <div class="heading">
+    <h1>Power Rankings</h1>
+    <p>Every NFL team, ranked by real Elo rating — computed live from actual game results.</p>
+  </div>
+
+  <div id="status" class="status-banner hidden"></div>
+
+  <div class="rankings-list" id="rankings-list"></div>
+
+</div>
+<script>
+  var API_BASE = 'https://sports-analytics-platform-ida8.onrender.com';
+  var statusEl = document.getElementById('status');
+  var listEl = document.getElementById('rankings-list');
+
+  function showStatus(message) {
+    statusEl.textContent = message;
+    statusEl.classList.remove('hidden');
+  }
+
+  fetch(API_BASE + '/rankings/nfl')
+    .then(function (resp) { return resp.json(); })
+    .then(function (data) {
+      var rankings = data.rankings || [];
+      if (rankings.length === 0) {
+        showStatus('No ratings on file yet -- run the Elo compute endpoint first.');
+        return;
+      }
+
+      var ratings = rankings.map(function (r) { return r.elo_rating; });
+      var max = Math.max.apply(null, ratings);
+      var min = Math.min.apply(null, ratings);
+      var range = (max - min) || 1;
+
+      rankings.forEach(function (r, i) {
+        var pct = 15 + ((r.elo_rating - min) / range) * 85;
+
+        var row = document.createElement('div');
+        row.className = 'rank-row';
+
+        var num = document.createElement('div');
+        num.className = 'rank-num' + (i < 3 ? ' top3' : '');
+        num.textContent = (i + 1);
+
+        var name = document.createElement('div');
+        name.className = 'rank-team';
+        name.textContent = r.team_name;
+
+        var track = document.createElement('div');
+        track.className = 'rank-track';
+        var fill = document.createElement('div');
+        fill.className = 'rank-fill';
+        fill.style.width = '0%';
+        track.appendChild(fill);
+
+        var value = document.createElement('div');
+        value.className = 'rank-value';
+        value.textContent = Math.round(r.elo_rating);
+
+        row.appendChild(num);
+        row.appendChild(name);
+        row.appendChild(track);
+        row.appendChild(value);
+        listEl.appendChild(row);
+
+        setTimeout(function () { fill.style.width = pct + '%'; }, 30 * i);
+      });
+    })
+    .catch(function () {
+      showStatus('Could not load rankings (is the backend running?).');
+    });
+</script>
+</body>
+</html>
